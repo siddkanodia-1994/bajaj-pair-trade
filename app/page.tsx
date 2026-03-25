@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabase, fetchAllEodPrices } from '@/lib/supabase'
 import { computeSpreadSeries, getApplicableStake } from '@/lib/spread-calculator'
 import { getLiveQuotes } from '@/lib/yahoo-finance'
 import SpreadDashboard from '@/components/SpreadDashboard'
@@ -8,15 +8,15 @@ export const dynamic = 'force-dynamic'
 
 export default async function Page() {
   // Fetch prices, stakes, and live quote in parallel
-  const [{ data: prices }, { data: stakes }, liveResult] = await Promise.all([
-    supabase.from('eod_prices').select('*').order('date', { ascending: true }).limit(2000),
+  const [prices, { data: stakes }, liveResult] = await Promise.all([
+    fetchAllEodPrices(),
     supabase.from('stake_history').select('*').order('quarter_end_date', { ascending: true }),
     getLiveQuotes().then(({ finsv, fin }) => ({
       finsv, fin, today: new Date().toISOString().split('T')[0],
     })).catch(() => null),
   ])
 
-  const spreadSeries = computeSpreadSeries(prices ?? [], stakes ?? [])
+  const spreadSeries = computeSpreadSeries(prices, stakes ?? [])
 
   let initialLiveData: LiveSpreadData | null = null
   if (liveResult) {

@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, fetchAllEodPrices } from '@/lib/supabase'
 import { computeSpreadSeries } from '@/lib/spread-calculator'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const [{ data: prices, error: pe }, { data: stakes, error: se }] = await Promise.all([
-      supabase.from('eod_prices').select('*').order('date', { ascending: true }).limit(2000),
+    const [prices, { data: stakes, error: se }] = await Promise.all([
+      fetchAllEodPrices(),
       supabase.from('stake_history').select('*').order('quarter_end_date', { ascending: true }),
     ])
 
-    if (pe) throw pe
     if (se) throw se
 
-    const series = computeSpreadSeries(prices ?? [], stakes ?? [])
+    const series = computeSpreadSeries(prices, stakes ?? [])
 
     return NextResponse.json({ series, count: series.length })
   } catch (err) {
