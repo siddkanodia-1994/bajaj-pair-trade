@@ -118,7 +118,7 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
           <span className="ml-2 text-slate-500">{fmtCrore(data.finsv.mcap)}</span>
         </div>
         <div>
-          <span className="text-slate-500">BAJAJFINANCE </span>
+          <span className="text-slate-500">BAJFINANCE </span>
           <span className="text-white font-medium">₹{fmt(data.fin.price, 0)}</span>
           <span className={`ml-2 ${data.fin.change_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             {data.fin.change_pct >= 0 ? '+' : ''}{fmt(data.fin.change_pct)}%

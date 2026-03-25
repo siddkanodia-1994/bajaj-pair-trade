@@ -13,7 +13,7 @@ interface YFQuote {
 const yf = new YahooFinanceClass({ suppressNotices: ['yahooSurvey'] })
 
 const FINSV = 'BAJAJFINSV.NS'
-const FIN = 'BAJAJFINANCE.NS'
+const FIN = 'BAJFINANCE.NS'
 const CRORE = 10_000_000 // 1 crore = 10 million
 
 async function sleep(ms: number) {
