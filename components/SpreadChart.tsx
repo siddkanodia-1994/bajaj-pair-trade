@@ -13,7 +13,7 @@ import {
   Legend,
 } from 'recharts'
 import type { SpreadPoint, WindowKey } from '@/types'
-import { WINDOW_KEYS } from '@/types'
+import { WINDOW_KEYS, WINDOW_TRADING_DAYS } from '@/types'
 
 interface Props {
   series: SpreadPoint[]
@@ -64,37 +64,53 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct }: Props) {
-  const windowStats = series.map((p) => p.windows[selectedWindow])
-  const mean = windowStats.find((w) => w?.mean != null)?.mean
+  // Slice series to the selected window's worth of data points
+  const windowDays = WINDOW_TRADING_DAYS[selectedWindow]
+  const visibleSeries = series.slice(-windowDays)
 
-  // Build chart data — only include points that have stats for the selected window
-  const chartData: ChartPoint[] = series
-    .map((p, i) => {
-      const w = p.windows[selectedWindow]
-      return {
-        date: p.date,
-        spread: p.spread_pct,
-        mean: w?.mean ?? null,
-        upper1: w?.upper_1sd ?? null,
-        lower1: w?.lower_1sd ?? null,
-        upper2: w?.upper_2sd ?? null,
-        lower2: w?.lower_2sd ?? null,
-        band1: w?.upper_1sd != null && w?.lower_1sd != null
-          ? [w.lower_1sd, w.upper_1sd] as [number, number]
-          : null,
-        band2: w?.upper_2sd != null && w?.lower_2sd != null
-          ? [w.lower_2sd, w.upper_2sd] as [number, number]
-          : null,
-      }
-    })
+  const windowStats = visibleSeries.map((p) => p.windows[selectedWindow])
+  const mean = windowStats.findLast((w) => w?.mean != null)?.mean
 
-  // Thin data for performance (max 500 points)
+  // Build chart data for the visible window
+  const chartData: ChartPoint[] = visibleSeries.map((p) => {
+    const w = p.windows[selectedWindow]
+    return {
+      date: p.date,
+      spread: p.spread_pct,
+      mean: w?.mean ?? null,
+      upper1: w?.upper_1sd ?? null,
+      lower1: w?.lower_1sd ?? null,
+      upper2: w?.upper_2sd ?? null,
+      lower2: w?.lower_2sd ?? null,
+      band1: w?.upper_1sd != null && w?.lower_1sd != null
+        ? [w.lower_1sd, w.upper_1sd] as [number, number]
+        : null,
+      band2: w?.upper_2sd != null && w?.lower_2sd != null
+        ? [w.lower_2sd, w.upper_2sd] as [number, number]
+        : null,
+    }
+  })
+
+  // Thin data for performance (max 500 points) — only needed for 3Y+
   const thinned = chartData.length > 500
     ? chartData.filter((_, i) => i % Math.ceil(chartData.length / 500) === 0 || i === chartData.length - 1)
     : chartData
 
-  // Tick every ~6 months
-  const tickInterval = Math.max(1, Math.floor(thinned.length / 12))
+  // Compute Y-axis domain from all visible values (spread + bands) with 10% padding
+  const allYValues = thinned.flatMap(d =>
+    [d.spread, d.upper2, d.lower2, d.upper1, d.lower1].filter((v): v is number => v != null)
+  )
+  if (liveSpreadPct != null) allYValues.push(liveSpreadPct)
+  const yMin = allYValues.length ? Math.min(...allYValues) : -10
+  const yMax = allYValues.length ? Math.max(...allYValues) : 20
+  const yPad = Math.max((yMax - yMin) * 0.12, 1)
+  const yDomain: [number, number] = [
+    Math.round((yMin - yPad) * 2) / 2,
+    Math.round((yMax + yPad) * 2) / 2,
+  ]
+
+  // X-axis ticks: target ~8 labels regardless of window
+  const tickInterval = Math.max(1, Math.floor(thinned.length / 8))
   const ticks = thinned
     .filter((_, i) => i % tickInterval === 0)
     .map((d) => d.date)
@@ -139,7 +155,8 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
             tick={{ fill: '#64748b', fontSize: 11 }}
             axisLine={{ stroke: '#334155' }}
             tickLine={false}
-            domain={['auto', 'auto']}
+            domain={yDomain}
+            allowDataOverflow={false}
           />
           <Tooltip content={<CustomTooltip />} />
 
