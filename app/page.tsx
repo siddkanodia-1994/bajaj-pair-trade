@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export default async function Page() {
   // Fetch prices, stakes, and live quote in parallel
   const [{ data: prices }, { data: stakes }, liveResult] = await Promise.all([
-    supabase.from('eod_prices').select('*').order('date', { ascending: true }),
+    supabase.from('eod_prices').select('*').order('date', { ascending: true }).limit(2000),
     supabase.from('stake_history').select('*').order('quarter_end_date', { ascending: true }),
     getLiveQuotes().then(({ finsv, fin }) => ({
       finsv, fin, today: new Date().toISOString().split('T')[0],
