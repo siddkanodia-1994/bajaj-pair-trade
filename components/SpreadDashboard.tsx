@@ -9,8 +9,9 @@ import SignalPanel from './SignalPanel'
 import ForwardReturnsTable from './ForwardReturnsTable'
 import StakeHistoryTable from './StakeHistoryTable'
 import DailySpreadTable from './DailySpreadTable'
+import SharesTab from './SharesTab'
 
-type Tab = 'dashboard' | 'daily-spread'
+type Tab = 'dashboard' | 'daily-spread' | 'shares'
 
 interface Props {
   spreadSeries: SpreadPoint[]
@@ -84,6 +85,16 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
           >
             Daily Spread
           </button>
+          <button
+            onClick={() => setActiveTab('shares')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+              activeTab === 'shares'
+                ? 'border-blue-500 text-white bg-slate-900'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Shares
+          </button>
         </div>
       </header>
 
@@ -145,6 +156,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               </p>
             </div>
             <DailySpreadTable spreadSeries={spreadSeries} stakes={stakes} />
+          </div>
+        )}
+
+        {activeTab === 'shares' && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <SharesTab />
           </div>
         )}
 

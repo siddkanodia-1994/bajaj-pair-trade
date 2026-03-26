@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { EodPriceRow } from '@/types'
+import type { EodPriceRow, ShareHistoryRow } from '@/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -14,6 +14,28 @@ export function createServerClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
+
+// ---------- Share history ----------
+
+export async function fetchLatestShares(): Promise<{ fin: number; finsv: number }> {
+  const { data } = await supabase
+    .from('share_history')
+    .select('company, shares, effective_date')
+    .order('effective_date', { ascending: false })
+  const fin   = data?.find((r) => r.company === 'BAJFINANCE')?.shares  ?? 0
+  const finsv = data?.find((r) => r.company === 'BAJAJFINSV')?.shares ?? 0
+  return { fin, finsv }
+}
+
+export async function fetchShareHistory(): Promise<ShareHistoryRow[]> {
+  const { data } = await supabase
+    .from('share_history')
+    .select('*')
+    .order('effective_date', { ascending: false })
+  return data ?? []
+}
+
+// ---------- EOD prices ----------
 
 // Paginated fetch — bypasses PostgREST's default 1000-row cap
 export async function fetchAllEodPrices(): Promise<EodPriceRow[]> {

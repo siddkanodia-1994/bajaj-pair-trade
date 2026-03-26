@@ -100,3 +100,11 @@ export interface ForwardReturnRow {
   win_rate: number | null
   observations: number
 }
+
+export interface ShareHistoryRow {
+  id: number
+  company: string         // 'BAJFINANCE' | 'BAJAJFINSV'
+  effective_date: string  // YYYY-MM-DD
+  shares: number
+  source: string | null
+}
