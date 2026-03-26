@@ -109,11 +109,10 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
     Math.round((yMax + yPad) * 2) / 2,
   ]
 
-  // X-axis ticks: target ~8 labels regardless of window
-  const tickInterval = Math.max(1, Math.floor(thinned.length / 8))
-  const ticks = thinned
-    .filter((_, i) => i % tickInterval === 0)
-    .map((d) => d.date)
+  // X-axis: use interval prop (index-based) instead of custom ticks array.
+  // Recharts silently drops ticks from custom arrays due to label-overlap prevention;
+  // interval={N} reliably renders a label at every (N+1)-th data point.
+  const xAxisInterval = Math.max(0, Math.floor(thinned.length / 8) - 1)
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
@@ -144,7 +143,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis
             dataKey="date"
-            ticks={ticks}
+            interval={xAxisInterval}
             tickFormatter={formatDate}
             tick={{ fill: '#64748b', fontSize: 11 }}
             axisLine={{ stroke: '#334155' }}
