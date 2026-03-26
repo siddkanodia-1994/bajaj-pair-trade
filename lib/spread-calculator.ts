@@ -11,27 +11,51 @@ import { WINDOW_TRADING_DAYS, WINDOW_KEYS } from '@/types'
 // ---------- Stake lookup ----------
 
 /**
- * Returns the applicable stake % for a given date using the most recent
- * quarterly disclosure on or before that date.
+ * Returns the quarter-end date (YYYY-MM-DD) for a given date.
+ * Uses Indian FY quarters: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar.
+ */
+export function getQuarterEndDate(date: string): string {
+  const d = new Date(date + 'T00:00:00')
+  const month = d.getMonth() // 0-indexed
+  const year = d.getFullYear()
+  if (month <= 2)  return `${year}-03-31`  // Jan–Mar
+  if (month <= 5)  return `${year}-06-30`  // Apr–Jun
+  if (month <= 8)  return `${year}-09-30`  // Jul–Sep
+  return `${year}-12-31`                   // Oct–Dec
+}
+
+/**
+ * Returns the applicable stake % for a given date.
+ * Logic: apply the stake disclosed at the END of the quarter the date falls in.
+ * E.g. Jan 15 2025 → quarter ends Mar 31 2025 → use the Mar 2025 stake.
+ * Fallback: most recent stake before the quarter end (for current/incomplete quarters).
  */
 export function getApplicableStake(
   date: string,
   stakes: StakeHistoryRow[]
 ): number {
+  const quarterEnd = getQuarterEndDate(date)
+
+  // 1. Exact match for this quarter's end date
+  const exact = stakes.find((s) => s.quarter_end_date === quarterEnd)
+  if (exact) return exact.stake_pct
+
+  // 2. Fallback: most recent disclosure before this quarter end
   const sorted = [...stakes].sort(
     (a, b) =>
       new Date(b.quarter_end_date).getTime() - new Date(a.quarter_end_date).getTime()
   )
   for (const s of sorted) {
-    if (s.quarter_end_date <= date) return s.stake_pct
+    if (s.quarter_end_date < quarterEnd) return s.stake_pct
   }
-  // Fallback: oldest known stake
+
+  // 3. Ultimate fallback: oldest known stake
   return sorted[sorted.length - 1]?.stake_pct ?? 52
 }
 
 // ---------- Rolling statistics ----------
 
-function rollingWindowStats(values: number[], windowSize: number): WindowStats[] {
+export function rollingWindowStats(values: number[], windowSize: number): WindowStats[] {
   return values.map((v, i) => {
     if (i < windowSize - 1) {
       return { mean: null, std: null, zscore: null, percentile_rank: null,
