@@ -6,7 +6,7 @@ import type {
   WindowStats,
   ForwardReturnRow,
 } from '@/types'
-import { WINDOW_TRADING_DAYS, WINDOW_KEYS } from '@/types'
+import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
 
 // ---------- Stake lookup ----------
 
@@ -55,32 +55,75 @@ export function getApplicableStake(
 
 // ---------- Rolling statistics ----------
 
+const NULL_STATS: WindowStats = {
+  mean: null, std: null, zscore: null, percentile_rank: null,
+  upper_1sd: null, lower_1sd: null, upper_2sd: null, lower_2sd: null,
+}
+
+function computeWindowStats(window: number[], v: number): WindowStats {
+  if (window.length < 2) return NULL_STATS
+  const mean = window.reduce((a, b) => a + b, 0) / window.length
+  const variance = window.reduce((a, b) => a + (b - mean) ** 2, 0) / (window.length - 1)
+  const std = Math.sqrt(variance)
+  const zscore = std > 0 ? (v - mean) / std : 0
+  const below = window.filter((x) => x < v).length
+  const percentile_rank = (below / window.length) * 100
+  return {
+    mean, std, zscore, percentile_rank,
+    upper_1sd: mean + std,
+    lower_1sd: mean - std,
+    upper_2sd: mean + 2 * std,
+    lower_2sd: mean - 2 * std,
+  }
+}
+
+/** Subtract N calendar months from a YYYY-MM-DD date string. */
+export function subtractMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setMonth(d.getMonth() - months)
+  return d.toISOString().split('T')[0]
+}
+
+/** First index in sorted `dates` where dates[j] >= target (binary search). */
+function firstIndexOnOrAfter(dates: string[], target: string): number {
+  let lo = 0, hi = dates.length - 1, result = dates.length
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (dates[mid] >= target) { result = mid; hi = mid - 1 }
+    else lo = mid + 1
+  }
+  return result
+}
+
+/**
+ * Calendar-anchored rolling statistics.
+ * For each point i, the window spans from the first trading day on or after
+ * (dates[i] − windowMonths) through dates[i].
+ * Pass 'ALL' to use all available data from the very first point.
+ */
+export function calendarRollingStats(
+  dates: string[],
+  values: number[],
+  windowMonths: number | 'ALL'
+): WindowStats[] {
+  return values.map((v, i) => {
+    let j: number
+    if (windowMonths === 'ALL') {
+      j = 0
+    } else {
+      const startDate = subtractMonths(dates[i], windowMonths)
+      if (dates[0] > startDate) return NULL_STATS  // not enough history yet
+      j = firstIndexOnOrAfter(dates, startDate)
+    }
+    return computeWindowStats(values.slice(j, i + 1), v)
+  })
+}
+
+/** @deprecated Use calendarRollingStats instead. Kept for reference. */
 export function rollingWindowStats(values: number[], windowSize: number): WindowStats[] {
   return values.map((v, i) => {
-    if (i < windowSize - 1) {
-      return { mean: null, std: null, zscore: null, percentile_rank: null,
-               upper_1sd: null, lower_1sd: null, upper_2sd: null, lower_2sd: null }
-    }
-    const window = values.slice(i - windowSize + 1, i + 1)
-    const mean = window.reduce((a, b) => a + b, 0) / window.length
-    const variance = window.reduce((a, b) => a + (b - mean) ** 2, 0) / (window.length - 1)
-    const std = Math.sqrt(variance)
-    const zscore = std > 0 ? (v - mean) / std : 0
-
-    // Percentile rank: % of window values below current value
-    const below = window.filter(x => x < v).length
-    const percentile_rank = (below / window.length) * 100
-
-    return {
-      mean,
-      std,
-      zscore,
-      percentile_rank,
-      upper_1sd: mean + std,
-      lower_1sd: mean - std,
-      upper_2sd: mean + 2 * std,
-      lower_2sd: mean - 2 * std,
-    }
+    if (i < windowSize - 1) return NULL_STATS
+    return computeWindowStats(values.slice(i - windowSize + 1, i + 1), v)
   })
 }
 
@@ -112,12 +155,14 @@ export function computeSpreadSeries(
     }
   })
 
+  const dates = sorted.map((r) => r.date)
   const spreadValues = rawPoints.map((p) => p.spread_pct)
 
-  // 2. Compute rolling stats for all 7 windows
+  // 2. Compute calendar-anchored rolling stats for all windows (including ALL)
   const windowStatsMap: Partial<Record<WindowKey, WindowStats[]>> = {}
   for (const key of WINDOW_KEYS) {
-    windowStatsMap[key] = rollingWindowStats(spreadValues, WINDOW_TRADING_DAYS[key])
+    const monthsOrAll: number | 'ALL' = key === 'ALL' ? 'ALL' : WINDOW_MONTHS[key]!
+    windowStatsMap[key] = calendarRollingStats(dates, spreadValues, monthsOrAll)
   }
 
   // 3. Assemble final SpreadPoint objects

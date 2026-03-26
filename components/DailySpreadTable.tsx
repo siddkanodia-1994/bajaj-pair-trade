@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react'
 import type { SpreadPoint, StakeHistoryRow, WindowKey, WindowStats } from '@/types'
-import { WINDOW_TRADING_DAYS, WINDOW_KEYS } from '@/types'
-import { rollingWindowStats, getApplicableStake, getQuarterEndDate } from '@/lib/spread-calculator'
+import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
+import { calendarRollingStats, getApplicableStake, getQuarterEndDate } from '@/lib/spread-calculator'
 
 interface Props {
   spreadSeries: SpreadPoint[]
@@ -58,8 +58,7 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
 
   // Recompute display rows using localStakes with quarter-end assignment
   const displayRows: DisplayRow[] = useMemo(() => {
-    const windowDays = WINDOW_TRADING_DAYS[selectedWindow]
-
+    // spreadSeries arrives sorted ASC — preserve that order for stats computation
     const recomputed = spreadSeries.map((p) => {
       const stake_pct = getApplicableStake(p.date, localStakes)
       const underlying_stake_value = (stake_pct / 100) * p.fin_mcap
@@ -76,8 +75,10 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
       }
     })
 
+    const dates = recomputed.map((r) => r.date)
     const spreadValues = recomputed.map((r) => r.spread_pct)
-    const statsArr = rollingWindowStats(spreadValues, windowDays)
+    const monthsOrAll: number | 'ALL' = selectedWindow === 'ALL' ? 'ALL' : (WINDOW_MONTHS[selectedWindow] ?? 12)
+    const statsArr = calendarRollingStats(dates, spreadValues, monthsOrAll)
 
     const rows: DisplayRow[] = recomputed.map((r, i) => ({ ...r, stats: statsArr[i] }))
 

@@ -1,4 +1,4 @@
-export type WindowKey = '3M' | '6M' | '1Y' | '2Y' | '3Y' | '4Y' | '5Y'
+export type WindowKey = '3M' | '6M' | '1Y' | '2Y' | '3Y' | '4Y' | '5Y' | 'ALL'
 
 export const WINDOW_TRADING_DAYS: Record<WindowKey, number> = {
   '3M': 60,
@@ -8,9 +8,22 @@ export const WINDOW_TRADING_DAYS: Record<WindowKey, number> = {
   '3Y': 756,
   '4Y': 1008,
   '5Y': 1260,
+  'ALL': 99999, // placeholder — calendar logic handles ALL separately
 }
 
-export const WINDOW_KEYS: WindowKey[] = ['3M', '6M', '1Y', '2Y', '3Y', '4Y', '5Y']
+// Calendar months per window (used for exact date-anchored rolling windows)
+export const WINDOW_MONTHS: Partial<Record<WindowKey, number>> = {
+  '3M': 3,
+  '6M': 6,
+  '1Y': 12,
+  '2Y': 24,
+  '3Y': 36,
+  '4Y': 48,
+  '5Y': 60,
+  // 'ALL' intentionally omitted — uses full dataset from first available date
+}
+
+export const WINDOW_KEYS: WindowKey[] = ['3M', '6M', '1Y', '2Y', '3Y', '4Y', '5Y', 'ALL']
 
 export interface WindowStats {
   mean: number | null

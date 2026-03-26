@@ -13,7 +13,8 @@ import {
   Legend,
 } from 'recharts'
 import type { SpreadPoint, WindowKey } from '@/types'
-import { WINDOW_KEYS, WINDOW_TRADING_DAYS } from '@/types'
+import { WINDOW_KEYS, WINDOW_MONTHS } from '@/types'
+import { subtractMonths } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
@@ -64,9 +65,16 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct }: Props) {
-  // Slice series to the selected window's worth of data points
-  const windowDays = WINDOW_TRADING_DAYS[selectedWindow]
-  const visibleSeries = series.slice(-windowDays)
+  // Calendar-anchored slice: find the first trading day on or after (lastDate − N months)
+  let visibleSeries: SpreadPoint[]
+  if (series.length === 0 || selectedWindow === 'ALL') {
+    visibleSeries = series
+  } else {
+    const lastDate = series[series.length - 1].date
+    const startDate = subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!)
+    const startIdx = series.findIndex((p) => p.date >= startDate)
+    visibleSeries = series.slice(startIdx === -1 ? 0 : startIdx)
+  }
 
   const windowStats = visibleSeries.map((p) => p.windows[selectedWindow])
   const mean = windowStats.findLast((w) => w?.mean != null)?.mean
