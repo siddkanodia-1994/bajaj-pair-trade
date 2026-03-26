@@ -50,7 +50,7 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
   )
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [stakeEditorOpen, setStakeEditorOpen] = useState(true)
+  const [stakeEditorOpen, setStakeEditorOpen] = useState(false)
 
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('1Y')
   const [page, setPage] = useState(0)
@@ -92,7 +92,37 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
   const totalPages = Math.ceil(displayRows.length / PAGE_SIZE)
   const pageRows = displayRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const sortedStakes = [...localStakes].sort(
+  // Auto-inject a placeholder row for the current quarter if it's not in the DB yet
+  const effectiveStakes = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const currentQuarterEnd = getQuarterEndDate(today)
+    const exists = localStakes.some((s) => s.quarter_end_date === currentQuarterEnd)
+    if (exists) return localStakes
+    // Find most recent prior stake
+    const prior = [...localStakes]
+      .filter((s) => s.quarter_end_date < currentQuarterEnd)
+      .sort((a, b) => b.quarter_end_date.localeCompare(a.quarter_end_date))[0]
+    const priorStake = prior?.stake_pct ?? localStakes[0]?.stake_pct ?? 52
+    return [
+      ...localStakes,
+      { id: -1, quarter_end_date: currentQuarterEnd, stake_pct: priorStake, source: null },
+    ]
+  }, [localStakes])
+
+  // Ensure editValues has an entry for the placeholder quarter
+  useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const currentQuarterEnd = getQuarterEndDate(today)
+    if (!(currentQuarterEnd in editValues)) {
+      const placeholder = effectiveStakes.find((s) => s.quarter_end_date === currentQuarterEnd)
+      if (placeholder) {
+        setEditValues((v) => ({ ...v, [currentQuarterEnd]: String(placeholder.stake_pct) }))
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveStakes])
+
+  const sortedStakes = [...effectiveStakes].sort(
     (a, b) => new Date(b.quarter_end_date).getTime() - new Date(a.quarter_end_date).getTime()
   )
 
@@ -118,11 +148,12 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
         return
       }
       // Update local stakes state → triggers useMemo recomputation
-      setLocalStakes((prev) =>
-        prev.map((s) =>
-          s.quarter_end_date === quarterEnd ? { ...s, stake_pct: val } : s
-        )
-      )
+      // If this was a placeholder (not yet in localStakes), add it; otherwise update in-place
+      setLocalStakes((prev) => {
+        const exists = prev.some((s) => s.quarter_end_date === quarterEnd)
+        if (exists) return prev.map((s) => s.quarter_end_date === quarterEnd ? { ...s, stake_pct: val } : s)
+        return [...prev, { id: Date.now(), quarter_end_date: quarterEnd, stake_pct: val, source: null }]
+      })
     } catch {
       setErrors((e) => ({ ...e, [quarterEnd]: 'Network error' }))
     } finally {
