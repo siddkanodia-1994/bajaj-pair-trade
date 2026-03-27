@@ -198,15 +198,16 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
             strokeWidth={1}
             strokeDasharray="4 4"
             dot={false}
+            activeDot={false}
             name="mean"
             legendType="none"
           />
 
           {/* SD boundary lines */}
-          <Line dataKey="upper1" stroke="#ef444440" strokeWidth={1} dot={false} name="upper1Line" legendType="none" />
-          <Line dataKey="lower1" stroke="#22c55e40" strokeWidth={1} dot={false} name="lower1Line" legendType="none" />
-          <Line dataKey="upper2" stroke="#ef444425" strokeWidth={1} dot={false} name="upper2Line" legendType="none" />
-          <Line dataKey="lower2" stroke="#22c55e25" strokeWidth={1} dot={false} name="lower2Line" legendType="none" />
+          <Line dataKey="upper1" stroke="#ef444440" strokeWidth={1} dot={false} activeDot={false} name="upper1Line" legendType="none" />
+          <Line dataKey="lower1" stroke="#22c55e40" strokeWidth={1} dot={false} activeDot={false} name="lower1Line" legendType="none" />
+          <Line dataKey="upper2" stroke="#ef444425" strokeWidth={1} dot={false} activeDot={false} name="upper2Line" legendType="none" />
+          <Line dataKey="lower2" stroke="#22c55e25" strokeWidth={1} dot={false} activeDot={false} name="lower2Line" legendType="none" />
 
           {/* Spread line */}
           <Line
