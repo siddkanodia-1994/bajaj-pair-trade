@@ -24,21 +24,21 @@ html {
 
 html.light {
   color-scheme: light;
-  --background: #F3F0ED;
-  --foreground: #1A120E;
+  --background: #ECE0D6;
+  --foreground: #1E1008;
 
-  /* Surfaces — monochromatic tints of #D6CCC2 */
-  --color-slate-950: #F3F0ED;   /* page bg */
-  --color-slate-900: #EBE6E1;   /* card bg */
-  --color-slate-800: #E2DBD4;   /* secondary card / hover */
-  --color-slate-700: #D6CCC2;   /* borders (base) */
-  --color-slate-600: #C4BAB0;   /* subtle borders */
+  /* Surfaces — monochromatic tints of #C19875 */
+  --color-slate-950: #ECE0D6;   /* page bg (70% white tint) */
+  --color-slate-900: #E0CCBA;   /* card bg (50% white tint) */
+  --color-slate-800: #D4B79E;   /* secondary card (30% white tint) */
+  --color-slate-700: #C19875;   /* borders (base) */
+  --color-slate-600: #AE8969;   /* subtle borders (10% shade) */
 
   /* Text — warm dark browns */
-  --color-slate-500: #8B7D73;
-  --color-slate-400: #5C4F46;
-  --color-slate-300: #3D302A;
-  --color-slate-200: #1A120E;
+  --color-slate-500: #7A5C43;
+  --color-slate-400: #5A3E2B;
+  --color-slate-300: #3A2518;
+  --color-slate-200: #1E1008;
 
-  --color-white: #1A120E;
+  --color-white: #1E1008;
 }
