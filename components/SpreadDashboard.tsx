@@ -156,6 +156,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
                   onWindowChange={setSelectedWindow}
                   liveSpreadPct={liveSpreadPct}
                   rollingMode={rollingMode}
+                  lightMode={lightMode}
                 />
               </div>
               <div>

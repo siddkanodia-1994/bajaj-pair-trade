@@ -21,6 +21,7 @@ interface Props {
   onWindowChange: (w: WindowKey) => void
   liveSpreadPct?: number
   rollingMode: boolean
+  lightMode?: boolean
 }
 
 interface ChartPoint {
@@ -61,7 +62,18 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   )
 }
 
-export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode }: Props) {
+export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode, lightMode }: Props) {
+  const chartColors = lightMode ? {
+    grid:     '#D6CCC2',
+    axisTick: '#5C4F46',
+    axisLine: '#8B7D73',
+    label:    '#5C4F46',
+  } : {
+    grid:     '#1e293b',
+    axisTick: '#64748b',
+    axisLine: '#334155',
+    label:    '#64748b',
+  }
   // Calendar-anchored slice
   let visibleSeries: SpreadPoint[]
   if (series.length === 0 || selectedWindow === 'ALL') {
@@ -164,19 +176,19 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
 
       <ResponsiveContainer width="100%" height={340}>
         <ComposedChart data={thinned} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
           <XAxis
             dataKey="date"
             interval={xAxisInterval}
             tickFormatter={formatDate}
-            tick={{ fill: '#64748b', fontSize: 11 }}
-            axisLine={{ stroke: '#334155' }}
+            tick={{ fill: chartColors.axisTick, fontSize: 11 }}
+            axisLine={{ stroke: chartColors.axisLine }}
             tickLine={false}
           />
           <YAxis
             tickFormatter={(v) => `${v.toFixed(1)}%`}
-            tick={{ fill: '#64748b', fontSize: 11 }}
-            axisLine={{ stroke: '#334155' }}
+            tick={{ fill: chartColors.axisTick, fontSize: 11 }}
+            axisLine={{ stroke: chartColors.axisLine }}
             tickLine={false}
             domain={yDomain}
             allowDataOverflow={false}
@@ -240,7 +252,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
             <ReferenceLine
               y={mean}
               stroke="transparent"
-              label={{ value: `μ ${mean.toFixed(1)}%`, fill: '#64748b', fontSize: 10, position: 'insideTopLeft' }}
+              label={{ value: `μ ${mean.toFixed(1)}%`, fill: chartColors.label, fontSize: 10, position: 'insideTopLeft' }}
             />
           )}
         </ComposedChart>
