@@ -259,19 +259,31 @@ export function computeForwardReturns(
 /**
  * Returns all individual analog observations for a given horizon (calendar days).
  * Matches historical points where z-score is within ±0.25 of currentZscore.
- * Each row: entry date/z-score/spread, exit date/z-score/spread, return pp, calendar days held.
+ *
+ * Rolling mode: uses each point's pre-computed rolling z-score.
+ * Fixed mode: recomputes every point's z-score using the same fixed mean/std
+ * as the current z-score, so the comparison is apples-to-apples.
  */
 export function getForwardReturnObservations(
   series: SpreadPoint[],
   currentZscore: number,
   selectedWindow: WindowKey,
-  horizon: number
+  horizon: number,
+  rollingMode: boolean,
+  fixedMean?: number,
+  fixedStd?: number
 ): ForwardReturnObservation[] {
   const ZSCORE_BAND = 0.25
   const results: ForwardReturnObservation[] = []
 
+  const getZ = (point: SpreadPoint): number | null => {
+    if (rollingMode) return point.windows[selectedWindow]?.zscore ?? null
+    if (fixedMean == null || fixedStd == null || fixedStd === 0) return null
+    return (point.spread_pct - fixedMean) / fixedStd
+  }
+
   for (let i = 0; i < series.length - 1; i++) {
-    const entryZ = series[i].windows[selectedWindow]?.zscore
+    const entryZ = getZ(series[i])
     if (entryZ == null) continue
     if (Math.abs(entryZ - currentZscore) > ZSCORE_BAND) continue
     const targetDate = addDays(series[i].date, horizon)
@@ -285,7 +297,7 @@ export function getForwardReturnObservations(
       entry_zscore: entryZ,
       entry_spread: series[i].spread_pct,
       exit_date: series[exitIdx].date,
-      exit_zscore: series[exitIdx].windows[selectedWindow]?.zscore ?? null,
+      exit_zscore: getZ(series[exitIdx]),
       exit_spread: series[exitIdx].spread_pct,
       return_pp: series[exitIdx].spread_pct - series[i].spread_pct,
       calendar_days: calendarDays,

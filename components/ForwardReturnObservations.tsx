@@ -41,6 +41,10 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
 
   const spread = liveSpreadPct ?? last.spread_pct
 
+  const visibleValues = selectedWindow === 'ALL'
+    ? series.map((p) => p.spread_pct)
+    : series.filter((p) => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
+
   const currentZscore = (() => {
     if (rollingMode) {
       const ws = last.windows[selectedWindow]
@@ -48,14 +52,16 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
         ? (spread - ws.mean) / ws.std
         : ws?.zscore ?? null
     }
-    const visibleValues = selectedWindow === 'ALL'
-      ? series.map((p) => p.spread_pct)
-      : series.filter((p) => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
     return computeFixedWindowStats(visibleValues, spread).zscore
   })()
 
+  const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
+
   const observations = currentZscore != null
-    ? getForwardReturnObservations(series, currentZscore, selectedWindow, selectedHorizon)
+    ? getForwardReturnObservations(
+        series, currentZscore, selectedWindow, selectedHorizon,
+        rollingMode, fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
+      )
     : []
 
   return (
