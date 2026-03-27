@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { SpreadPoint, StakeHistoryRow, WindowKey, LiveSpreadData } from '@/types'
+import { recomputeSpreadSeries } from '@/lib/spread-calculator'
 import LiveSpreadBanner from './LiveSpreadBanner'
 import SpreadChart from './SpreadChart'
 import StatisticsPanel from './StatisticsPanel'
@@ -25,6 +26,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [rollingMode, setRollingMode] = useState(true)
   const [lightMode, setLightMode] = useState(false)
+  const [currentStakes, setCurrentStakes] = useState<StakeHistoryRow[]>(stakes)
+
+  const activeSpreadSeries = useMemo(
+    () => recomputeSpreadSeries(spreadSeries, currentStakes),
+    [spreadSeries, currentStakes]
+  )
 
   useEffect(() => {
     setLightMode(document.documentElement.classList.contains('light'))
@@ -141,7 +148,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
             {/* Live Banner */}
             <LiveSpreadBanner
               initialData={liveData}
-              spreadSeries={spreadSeries}
+              spreadSeries={activeSpreadSeries}
               selectedWindow={selectedWindow}
               rollingMode={rollingMode}
               onDataLoaded={setLiveData}
@@ -151,7 +158,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="xl:col-span-2">
                 <SpreadChart
-                  series={spreadSeries}
+                  series={activeSpreadSeries}
                   selectedWindow={selectedWindow}
                   onWindowChange={setSelectedWindow}
                   liveSpreadPct={liveSpreadPct}
@@ -161,7 +168,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               </div>
               <div>
                 <StatisticsPanel
-                  series={spreadSeries}
+                  series={activeSpreadSeries}
                   selectedWindow={selectedWindow}
                   liveSpreadPct={liveSpreadPct}
                   rollingMode={rollingMode}
@@ -171,7 +178,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
 
             {/* Signal Cards */}
             <SignalPanel
-              series={spreadSeries}
+              series={activeSpreadSeries}
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
@@ -179,7 +186,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
 
             {/* Forward Returns */}
             <ForwardReturnsTable
-              series={spreadSeries}
+              series={activeSpreadSeries}
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
@@ -187,7 +194,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
 
             {/* Analog Observations */}
             <ForwardReturnObservations
-              series={spreadSeries}
+              series={activeSpreadSeries}
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
@@ -206,7 +213,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
                 Negative spread = Finserv trades at a discount to its stake.
               </p>
             </div>
-            <DailySpreadTable spreadSeries={spreadSeries} stakes={stakes} rollingMode={rollingMode} />
+            <DailySpreadTable
+              spreadSeries={activeSpreadSeries}
+              stakes={currentStakes}
+              rollingMode={rollingMode}
+              onStakesChange={setCurrentStakes}
+            />
           </div>
         )}
 

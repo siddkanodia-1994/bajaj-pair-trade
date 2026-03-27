@@ -201,6 +201,41 @@ export function computeSpreadSeries(
   })
 }
 
+/**
+ * Re-derives spread_pct and all 8 rolling windows for an existing SpreadPoint[]
+ * using a new set of stakes. fin_mcap / finsv_mcap come from the existing series —
+ * no DB round-trip needed. Pure function, safe to call in useMemo.
+ */
+export function recomputeSpreadSeries(
+  series: SpreadPoint[],
+  stakes: StakeHistoryRow[]
+): SpreadPoint[] {
+  if (series.length === 0) return series
+
+  const rawPoints = series.map((p) => {
+    const stake_pct = getApplicableStake(p.date, stakes)
+    const underlying_stake_value = (stake_pct / 100) * p.fin_mcap
+    const residual_value = p.finsv_mcap - underlying_stake_value
+    const spread_pct = p.finsv_mcap > 0 ? (residual_value / p.finsv_mcap) * 100 : 0
+    return { date: p.date, stake_pct, underlying_stake_value, residual_value, spread_pct, finsv_mcap: p.finsv_mcap, fin_mcap: p.fin_mcap }
+  })
+
+  const dates = rawPoints.map((p) => p.date)
+  const spreadValues = rawPoints.map((p) => p.spread_pct)
+
+  const windowStatsMap: Partial<Record<WindowKey, WindowStats[]>> = {}
+  for (const key of WINDOW_KEYS) {
+    const monthsOrAll: number | 'ALL' = key === 'ALL' ? 'ALL' : WINDOW_MONTHS[key]!
+    windowStatsMap[key] = calendarRollingStats(dates, spreadValues, monthsOrAll)
+  }
+
+  return rawPoints.map((p, i) => {
+    const windows = {} as Record<WindowKey, WindowStats>
+    for (const key of WINDOW_KEYS) windows[key] = windowStatsMap[key]![i]
+    return { ...p, windows }
+  })
+}
+
 // ---------- Forward returns ----------
 
 /** Add `days` calendar days to a YYYY-MM-DD date string. */

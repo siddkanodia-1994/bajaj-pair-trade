@@ -9,6 +9,7 @@ interface Props {
   spreadSeries: SpreadPoint[]
   stakes: StakeHistoryRow[]
   rollingMode: boolean
+  onStakesChange: (updated: StakeHistoryRow[]) => void
 }
 
 const PAGE_SIZE = 100
@@ -45,8 +46,7 @@ interface DisplayRow {
   zscore: number | null
 }
 
-export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: Props) {
-  const [localStakes, setLocalStakes] = useState<StakeHistoryRow[]>(stakes)
+export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, onStakesChange }: Props) {
   const [editValues, setEditValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(stakes.map((s) => [s.quarter_end_date, String(s.stake_pct)]))
   )
@@ -58,11 +58,11 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
   const [page, setPage] = useState(0)
   const [sortDesc, setSortDesc] = useState(true)
 
-  // Recompute display rows using localStakes with quarter-end assignment
+  // Recompute display rows using stakes with quarter-end assignment
   const displayRows: DisplayRow[] = useMemo(() => {
     // spreadSeries arrives sorted ASC — preserve that order for stats computation
     const recomputed = spreadSeries.map((p) => {
-      const stake_pct = getApplicableStake(p.date, localStakes)
+      const stake_pct = getApplicableStake(p.date, stakes)
       const underlying_stake_value = (stake_pct / 100) * p.fin_mcap
       const residual_value = p.finsv_mcap - underlying_stake_value
       const spread_pct = p.finsv_mcap > 0 ? (residual_value / p.finsv_mcap) * 100 : 0
@@ -106,7 +106,7 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
     )
 
     return rows
-  }, [spreadSeries, localStakes, selectedWindow, sortDesc, rollingMode])
+  }, [spreadSeries, stakes, selectedWindow, sortDesc, rollingMode])
 
   const totalPages = Math.ceil(displayRows.length / PAGE_SIZE)
   const pageRows = displayRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -115,18 +115,18 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
   const effectiveStakes = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
     const currentQuarterEnd = getQuarterEndDate(today)
-    const exists = localStakes.some((s) => s.quarter_end_date === currentQuarterEnd)
-    if (exists) return localStakes
+    const exists = stakes.some((s) => s.quarter_end_date === currentQuarterEnd)
+    if (exists) return stakes
     // Find most recent prior stake
-    const prior = [...localStakes]
+    const prior = [...stakes]
       .filter((s) => s.quarter_end_date < currentQuarterEnd)
       .sort((a, b) => b.quarter_end_date.localeCompare(a.quarter_end_date))[0]
-    const priorStake = prior?.stake_pct ?? localStakes[0]?.stake_pct ?? 52
+    const priorStake = prior?.stake_pct ?? stakes[0]?.stake_pct ?? 52
     return [
-      ...localStakes,
+      ...stakes,
       { id: -1, quarter_end_date: currentQuarterEnd, stake_pct: priorStake, source: null },
     ]
-  }, [localStakes])
+  }, [stakes])
 
   // Ensure editValues has an entry for the placeholder quarter
   useMemo(() => {
@@ -166,13 +166,12 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
         setErrors((e) => ({ ...e, [quarterEnd]: err.error ?? 'Save failed' }))
         return
       }
-      // Update local stakes state → triggers useMemo recomputation
-      // If this was a placeholder (not yet in localStakes), add it; otherwise update in-place
-      setLocalStakes((prev) => {
-        const exists = prev.some((s) => s.quarter_end_date === quarterEnd)
-        if (exists) return prev.map((s) => s.quarter_end_date === quarterEnd ? { ...s, stake_pct: val } : s)
-        return [...prev, { id: Date.now(), quarter_end_date: quarterEnd, stake_pct: val, source: null }]
-      })
+      // Propagate updated stakes to parent → triggers full series recomputation
+      const exists = stakes.some((s) => s.quarter_end_date === quarterEnd)
+      const updatedStakes = exists
+        ? stakes.map((s) => s.quarter_end_date === quarterEnd ? { ...s, stake_pct: val } : s)
+        : [...stakes, { id: Date.now(), quarter_end_date: quarterEnd, stake_pct: val, source: null }]
+      onStakesChange(updatedStakes)
     } catch {
       setErrors((e) => ({ ...e, [quarterEnd]: 'Network error' }))
     } finally {
