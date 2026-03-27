@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { SpreadPoint, StakeHistoryRow, WindowKey, LiveSpreadData } from '@/types'
 import LiveSpreadBanner from './LiveSpreadBanner'
 import SpreadChart from './SpreadChart'
 import StatisticsPanel from './StatisticsPanel'
 import SignalPanel from './SignalPanel'
 import ForwardReturnsTable from './ForwardReturnsTable'
-import StakeHistoryTable from './StakeHistoryTable'
 import DailySpreadTable from './DailySpreadTable'
 import SharesTab from './SharesTab'
 
@@ -23,6 +22,24 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('1Y')
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+  const [rollingMode, setRollingMode] = useState(true)
+  const [lightMode, setLightMode] = useState(false)
+
+  useEffect(() => {
+    setLightMode(document.documentElement.classList.contains('light'))
+  }, [])
+
+  function toggleTheme() {
+    const next = !lightMode
+    setLightMode(next)
+    if (next) {
+      document.documentElement.classList.add('light')
+      localStorage.setItem('theme', 'light')
+    } else {
+      document.documentElement.classList.remove('light')
+      localStorage.setItem('theme', 'dark')
+    }
+  }
 
   const liveSpreadPct = liveData?.spread_pct
 
@@ -58,8 +75,27 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               Bajaj Finserv / Bajaj Finance · Implied Residual Value Framework · Tusk Investments
             </p>
           </div>
-          <div className="text-xs text-slate-600">
-            {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setRollingMode(r => !r)}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                rollingMode
+                  ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                  : 'border-slate-600 bg-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {rollingMode ? 'Rolling Mean: ON' : 'Rolling Mean: OFF'}
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="text-xs px-3 py-1 rounded-full border border-slate-600 bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+              title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {lightMode ? '🌙 Dark' : '☀️ Light'}
+            </button>
+            <div className="text-xs text-slate-600">
+              {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
           </div>
         </div>
 
@@ -106,6 +142,8 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               initialData={liveData}
               spreadSeries={spreadSeries}
               selectedWindow={selectedWindow}
+              rollingMode={rollingMode}
+              onDataLoaded={setLiveData}
             />
 
             {/* Chart + Stats */}
@@ -116,6 +154,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
                   selectedWindow={selectedWindow}
                   onWindowChange={setSelectedWindow}
                   liveSpreadPct={liveSpreadPct}
+                  rollingMode={rollingMode}
                 />
               </div>
               <div>
@@ -123,6 +162,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
                   series={spreadSeries}
                   selectedWindow={selectedWindow}
                   liveSpreadPct={liveSpreadPct}
+                  rollingMode={rollingMode}
                 />
               </div>
             </div>
@@ -132,6 +172,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               series={spreadSeries}
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
+              rollingMode={rollingMode}
             />
 
             {/* Forward Returns */}
@@ -141,8 +182,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               liveSpreadPct={liveSpreadPct}
             />
 
-            {/* Stake History */}
-            <StakeHistoryTable stakes={stakes} />
+
           </>
         )}
 
@@ -155,7 +195,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
                 Negative spread = Finserv trades at a discount to its stake.
               </p>
             </div>
-            <DailySpreadTable spreadSeries={spreadSeries} stakes={stakes} />
+            <DailySpreadTable spreadSeries={spreadSeries} stakes={stakes} rollingMode={rollingMode} />
           </div>
         )}
 
@@ -166,7 +206,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
         )}
 
         <footer className="text-center text-xs text-slate-700 pb-6">
-          Live prices from Yahoo Finance (~15 min delay) · Historical data in Supabase · Refreshes every 60s
+          Live prices from Dhan API · Historical data in Supabase · Refreshes every 60s
         </footer>
       </main>
     </div>
