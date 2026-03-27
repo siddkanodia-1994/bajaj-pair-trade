@@ -2,14 +2,17 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import type { LiveSpreadData } from '@/types'
+import { WINDOW_MONTHS } from '@/types'
 import { generateSignal } from '@/lib/signal-generator'
 import type { SpreadPoint, WindowKey } from '@/types'
-import { computeForwardReturns } from '@/lib/spread-calculator'
+import { computeForwardReturns, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
 interface Props {
+  rollingMode: boolean
   initialData: LiveSpreadData | null
   spreadSeries: SpreadPoint[]
   selectedWindow: WindowKey
+  onDataLoaded?: (data: LiveSpreadData) => void
 }
 
 function fmt(n: number, decimals = 2) {
@@ -21,10 +24,18 @@ function fmtCrore(n: number) {
   return `₹${(n / 1000).toFixed(1)}k cr`
 }
 
-export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWindow }: Props) {
+export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWindow, rollingMode, onDataLoaded }: Props) {
   const [data, setData] = useState<LiveSpreadData | null>(initialData)
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+
+  // Sync display when parent pushes new liveData
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+      setLastRefresh(new Date())
+    }
+  }, [initialData])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -34,14 +45,16 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
         const json = await res.json()
         setData(json)
         setLastRefresh(new Date())
+        onDataLoaded?.(json)
       }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [onDataLoaded])
 
+  // Auto-refresh every 60s
   useEffect(() => {
-    const id = setInterval(refresh, 60_000) // refresh every 60s
+    const id = setInterval(refresh, 60_000)
     return () => clearInterval(id)
   }, [refresh])
 
@@ -53,15 +66,22 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
     )
   }
 
-  // Compute live z-score by finding the last point's window stats, then override spread_pct with live
   const lastPoint = spreadSeries[spreadSeries.length - 1]
   const windowStats = lastPoint?.windows[selectedWindow]
 
-  // Approximate live zscore using last known mean/std with live spread
-  const liveZscore =
-    windowStats?.mean != null && windowStats?.std != null && windowStats.std > 0
-      ? (data.spread_pct - windowStats.mean) / windowStats.std
-      : windowStats?.zscore ?? null
+  const liveZscore = (() => {
+    if (rollingMode) {
+      return windowStats?.mean != null && windowStats?.std != null && windowStats.std > 0
+        ? (data.spread_pct - windowStats.mean) / windowStats.std
+        : windowStats?.zscore ?? null
+    }
+    // Fixed-window: compute mean/SD over the visible window slice
+    const lastDate = lastPoint?.date ?? ''
+    const visibleValues = selectedWindow === 'ALL'
+      ? spreadSeries.map((p) => p.spread_pct)
+      : spreadSeries.filter((p) => p.date >= subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
+    return computeFixedWindowStats(visibleValues, data.spread_pct).zscore
+  })()
 
   const signal = generateSignal(liveZscore)
 
