@@ -3,11 +3,12 @@
 import { useState, useMemo } from 'react'
 import type { SpreadPoint, StakeHistoryRow, WindowKey, WindowStats } from '@/types'
 import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
-import { calendarRollingStats, getApplicableStake, getQuarterEndDate } from '@/lib/spread-calculator'
+import { calendarRollingStats, computeFixedWindowStats, subtractMonths, getApplicableStake, getQuarterEndDate } from '@/lib/spread-calculator'
 
 interface Props {
   spreadSeries: SpreadPoint[]
   stakes: StakeHistoryRow[]
+  rollingMode: boolean
 }
 
 const PAGE_SIZE = 100
@@ -43,7 +44,7 @@ interface DisplayRow {
   stats: WindowStats
 }
 
-export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
+export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: Props) {
   const [localStakes, setLocalStakes] = useState<StakeHistoryRow[]>(stakes)
   const [editValues, setEditValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(stakes.map((s) => [s.quarter_end_date, String(s.stake_pct)]))
@@ -80,14 +81,28 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
     const monthsOrAll: number | 'ALL' = selectedWindow === 'ALL' ? 'ALL' : (WINDOW_MONTHS[selectedWindow] ?? 12)
     const statsArr = calendarRollingStats(dates, spreadValues, monthsOrAll)
 
-    const rows: DisplayRow[] = recomputed.map((r, i) => ({ ...r, stats: statsArr[i] }))
+    // Fixed mode: slice to the selected window, then compute one mean/SD for all rows
+    const fixedStats = !rollingMode
+      ? (() => {
+          const lastDate = dates[dates.length - 1] ?? ''
+          const windowValues = selectedWindow === 'ALL'
+            ? spreadValues
+            : spreadValues.filter((_, i) => dates[i] >= subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!))
+          return computeFixedWindowStats(windowValues)
+        })()
+      : null
+
+    const rows: DisplayRow[] = recomputed.map((r, i) => ({
+      ...r,
+      stats: fixedStats ?? statsArr[i],
+    }))
 
     rows.sort((a, b) =>
       sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)
     )
 
     return rows
-  }, [spreadSeries, localStakes, selectedWindow, sortDesc])
+  }, [spreadSeries, localStakes, selectedWindow, sortDesc, rollingMode])
 
   const totalPages = Math.ceil(displayRows.length / PAGE_SIZE)
   const pageRows = displayRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -413,7 +428,7 @@ export default function DailySpreadTable({ spreadSeries, stakes }: Props) {
       <div className="text-xs text-slate-600 flex flex-wrap gap-4">
         <span><span className="text-green-400">Green</span> = Finserv at a discount to its stake value</span>
         <span><span className="text-red-400">Red</span> = Finserv at a premium to its stake value</span>
-        <span>SD bands on rolling {selectedWindow} window · Stake = end-of-quarter BSE disclosure</span>
+        <span>SD bands on {rollingMode ? 'rolling' : 'fixed'} {selectedWindow} window · Stake = end-of-quarter BSE disclosure</span>
       </div>
     </div>
   )

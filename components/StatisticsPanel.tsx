@@ -1,13 +1,15 @@
 'use client'
 
 import type { SpreadPoint, WindowKey } from '@/types'
-import { WINDOW_KEYS } from '@/types'
+import { WINDOW_KEYS, WINDOW_MONTHS } from '@/types'
 import { generateSignal } from '@/lib/signal-generator'
+import { subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   liveSpreadPct?: number
+  rollingMode: boolean
 }
 
 function fmt(n: number | null, d = 2) {
@@ -23,7 +25,7 @@ function zscoreBar(z: number | null) {
   return { pct, color }
 }
 
-export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct }: Props) {
+export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
   const last = series[series.length - 1]
   if (!last) {
     return (
@@ -33,10 +35,19 @@ export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct 
     )
   }
 
-  const ws = last.windows[selectedWindow]
-
-  // If live spread provided, compute live zscore
   const spread = liveSpreadPct ?? last.spread_pct
+
+  // Fixed-window stats: slice visible series and compute one mean/SD for the whole window
+  const effectiveStats = (() => {
+    if (rollingMode) return last.windows[selectedWindow]
+    const lastDate = last.date
+    const visibleValues = selectedWindow === 'ALL'
+      ? series.map((p) => p.spread_pct)
+      : series.filter((p) => p.date >= subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
+    return computeFixedWindowStats(visibleValues, spread)
+  })()
+
+  const ws = effectiveStats
   const liveZscore =
     ws?.mean != null && ws?.std != null && ws.std > 0
       ? (spread - ws.mean) / ws.std

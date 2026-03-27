@@ -1,13 +1,15 @@
 'use client'
 
 import type { SpreadPoint, WindowKey, ForwardReturnRow } from '@/types'
+import { WINDOW_MONTHS } from '@/types'
 import { generateSignal, signalBorderColor, signalBgColor } from '@/lib/signal-generator'
-import { computeForwardReturns } from '@/lib/spread-calculator'
+import { computeForwardReturns, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   liveSpreadPct?: number
+  rollingMode: boolean
 }
 
 function fmt(n: number | null, d = 2) {
@@ -78,17 +80,25 @@ function SignalCard({ title, horizon, fwdReturn, zscore, window }: SignalCardPro
   )
 }
 
-export default function SignalPanel({ series, selectedWindow, liveSpreadPct }: Props) {
+export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
-  const ws = last.windows[selectedWindow]
   const spread = liveSpreadPct ?? last.spread_pct
 
-  const zscore =
-    ws?.mean != null && ws?.std != null && ws.std > 0
-      ? (spread - ws.mean) / ws.std
-      : ws?.zscore ?? null
+  const zscore = (() => {
+    if (rollingMode) {
+      const ws = last.windows[selectedWindow]
+      return ws?.mean != null && ws?.std != null && ws.std > 0
+        ? (spread - ws.mean) / ws.std
+        : ws?.zscore ?? null
+    }
+    const lastDate = last.date
+    const visibleValues = selectedWindow === 'ALL'
+      ? series.map((p) => p.spread_pct)
+      : series.filter((p) => p.date >= subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
+    return computeFixedWindowStats(visibleValues, spread).zscore
+  })()
 
   const forwardReturns = computeForwardReturns(series, zscore ?? 0, selectedWindow, [5, 20, 60, 90])
   const fwd5  = forwardReturns.find(r => r.horizon === 5)

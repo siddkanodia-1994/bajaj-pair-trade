@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { ShareHistoryRow } from '@/types'
 
 const COMPANIES = ['BAJFINANCE', 'BAJAJFINSV'] as const
@@ -12,9 +12,7 @@ const LABELS: Record<Company, string> = {
 }
 
 function formatShares(n: number) {
-  // Format in Indian numbering (crores / lakhs)
-  if (n >= 1e9) return (n / 1e9).toFixed(3) + 'B'
-  return n.toLocaleString('en-IN')
+  return (n / 1e7).toFixed(2) + ' Cr'
 }
 
 function CompanySection({
@@ -63,6 +61,10 @@ function CompanySection({
   }
 
   const companyRows = rows.filter(r => r.company === company)
+  const [expanded, setExpanded] = useState(false)
+  const PREVIEW = 10
+  const visibleRows = expanded ? companyRows : companyRows.slice(0, PREVIEW)
+  const hasMore = companyRows.length > PREVIEW
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-800/50 overflow-hidden">
@@ -72,7 +74,7 @@ function CompanySection({
         {companyRows[0] && (
           <span className="text-xs text-slate-400">
             Latest: <span className="text-white font-medium">{formatShares(companyRows[0].shares)}</span>
-            {' '}shares as of{' '}
+            {' '}as of{' '}
             <span className="text-white">{companyRows[0].effective_date}</span>
           </span>
         )}
@@ -84,7 +86,7 @@ function CompanySection({
           <thead>
             <tr className="border-b border-slate-700 text-slate-500">
               <th className="px-4 py-2 text-left font-medium">Effective Date</th>
-              <th className="px-4 py-2 text-right font-medium">Shares</th>
+              <th className="px-4 py-2 text-right font-medium">Shares (Cr)</th>
               <th className="px-4 py-2 text-left font-medium">Source</th>
               <th className="px-4 py-2" />
             </tr>
@@ -95,7 +97,7 @@ function CompanySection({
                 <td colSpan={4} className="px-4 py-4 text-center text-slate-600">No entries yet</td>
               </tr>
             ) : (
-              companyRows.map((row) => (
+              visibleRows.map((row) => (
                 <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-800/80">
                   <td className="px-4 py-2 text-slate-300">{row.effective_date}</td>
                   <td className="px-4 py-2 text-right font-mono text-white">{formatShares(row.shares)}</td>
@@ -116,6 +118,20 @@ function CompanySection({
           </tbody>
         </table>
       </div>
+
+      {/* Show more / less */}
+      {hasMore && (
+        <div className="px-4 py-2 border-t border-slate-700/50 bg-slate-900/20">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            {expanded
+              ? '▲ Show less'
+              : `▼ Show all ${companyRows.length} rows (${companyRows.length - PREVIEW} more)`}
+          </button>
+        </div>
+      )}
 
       {/* Add new row */}
       <div className="px-4 py-3 border-t border-slate-700 bg-slate-900/30">
@@ -169,7 +185,7 @@ export default function SharesTab() {
       <div>
         <h2 className="text-base font-semibold text-white">Shares Outstanding</h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Historical share counts used to compute live market cap (mcap = price × shares).
+          Historical share counts used to compute live market cap (mcap = price × shares in Cr).
           Used for live spread from Mar 27, 2026 onwards.
         </p>
       </div>

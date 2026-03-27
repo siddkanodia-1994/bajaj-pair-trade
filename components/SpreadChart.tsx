@@ -9,18 +9,19 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
+  ReferenceDot,
   ResponsiveContainer,
-  Legend,
 } from 'recharts'
 import type { SpreadPoint, WindowKey } from '@/types'
 import { WINDOW_KEYS, WINDOW_MONTHS } from '@/types'
-import { subtractMonths } from '@/lib/spread-calculator'
+import { subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   onWindowChange: (w: WindowKey) => void
   liveSpreadPct?: number
+  rollingMode: boolean
 }
 
 interface ChartPoint {
@@ -31,8 +32,6 @@ interface ChartPoint {
   lower1: number | null
   upper2: number | null
   lower2: number | null
-  band1: [number, number] | null
-  band2: [number, number] | null
 }
 
 function formatDate(dateStr: string) {
@@ -49,7 +48,6 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload || !payload.length) return null
   const spread = payload.find((p) => p.name === 'spread')?.value
   const mean = payload.find((p) => p.name === 'mean')?.value
-  const zscore = spread != null && mean != null ? spread - mean : null
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs shadow-xl">
@@ -64,8 +62,8 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   )
 }
 
-export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct }: Props) {
-  // Calendar-anchored slice: find the first trading day on or after (lastDate − N months)
+export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode }: Props) {
+  // Calendar-anchored slice
   let visibleSeries: SpreadPoint[]
   if (series.length === 0 || selectedWindow === 'ALL') {
     visibleSeries = series
@@ -79,32 +77,54 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
   const windowStats = visibleSeries.map((p) => p.windows[selectedWindow])
   const mean = windowStats.findLast((w) => w?.mean != null)?.mean
 
-  // Build chart data for the visible window
+  // Fixed-window stats (when rolling mode is off): one mean/SD for the entire visible window
+  const fixedStats = !rollingMode
+    ? computeFixedWindowStats(visibleSeries.map((p) => p.spread_pct))
+    : null
+
+  // Build chart data
   const chartData: ChartPoint[] = visibleSeries.map((p) => {
     const w = p.windows[selectedWindow]
     return {
       date: p.date,
       spread: p.spread_pct,
-      mean: w?.mean ?? null,
-      upper1: w?.upper_1sd ?? null,
-      lower1: w?.lower_1sd ?? null,
-      upper2: w?.upper_2sd ?? null,
-      lower2: w?.lower_2sd ?? null,
-      band1: w?.upper_1sd != null && w?.lower_1sd != null
-        ? [w.lower_1sd, w.upper_1sd] as [number, number]
-        : null,
-      band2: w?.upper_2sd != null && w?.lower_2sd != null
-        ? [w.lower_2sd, w.upper_2sd] as [number, number]
-        : null,
+      mean:   fixedStats?.mean   ?? w?.mean   ?? null,
+      upper1: fixedStats?.upper_1sd ?? w?.upper_1sd ?? null,
+      lower1: fixedStats?.lower_1sd ?? w?.lower_1sd ?? null,
+      upper2: fixedStats?.upper_2sd ?? w?.upper_2sd ?? null,
+      lower2: fixedStats?.lower_2sd ?? w?.lower_2sd ?? null,
     }
   })
+
+  // Append live spread as the last data point so the spread line extends to today
+  if (liveSpreadPct != null && chartData.length > 0) {
+    const now = new Date()
+    const istOffset = 5.5 * 60 * 60 * 1000
+    const today = new Date(now.getTime() + istOffset).toISOString().split('T')[0]
+    const lastDate = chartData[chartData.length - 1].date
+    if (today > lastDate) {
+      const lastStats = visibleSeries[visibleSeries.length - 1]?.windows[selectedWindow]
+      chartData.push({
+        date: today,
+        spread: liveSpreadPct,
+        mean: lastStats?.mean ?? null,
+        upper1: lastStats?.upper_1sd ?? null,
+        lower1: lastStats?.lower_1sd ?? null,
+        upper2: lastStats?.upper_2sd ?? null,
+        lower2: lastStats?.lower_2sd ?? null,
+      })
+    } else {
+      // Today's EOD already in series — update the last point to live value
+      chartData[chartData.length - 1].spread = liveSpreadPct
+    }
+  }
 
   // Thin data for performance (max 500 points) — only needed for 3Y+
   const thinned = chartData.length > 500
     ? chartData.filter((_, i) => i % Math.ceil(chartData.length / 500) === 0 || i === chartData.length - 1)
     : chartData
 
-  // Compute Y-axis domain from all visible values (spread + bands) with 10% padding
+  // Y-axis domain
   const allYValues = thinned.flatMap(d =>
     [d.spread, d.upper2, d.lower2, d.upper1, d.lower1].filter((v): v is number => v != null)
   )
@@ -117,9 +137,6 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
     Math.round((yMax + yPad) * 2) / 2,
   ]
 
-  // X-axis: use interval prop (index-based) instead of custom ticks array.
-  // Recharts silently drops ticks from custom arrays due to label-overlap prevention;
-  // interval={N} reliably renders a label at every (N+1)-th data point.
   const xAxisInterval = Math.max(0, Math.floor(thinned.length / 8) - 1)
 
   return (
@@ -167,39 +184,13 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           />
           <Tooltip content={<CustomTooltip />} />
 
-          {/* ±2SD band */}
-          <Area
-            dataKey="upper2"
-            data={thinned.filter(d => d.upper2 != null)}
-            stroke="none"
-            fill="#ef444415"
-            legendType="none"
-            name="upper2"
-          />
-          <Area
-            dataKey="lower2"
-            data={thinned.filter(d => d.lower2 != null)}
-            stroke="none"
-            fill="#22c55e15"
-            legendType="none"
-            name="lower2"
-          />
+          {/* ±2SD band — no data override so x-axis stays consistent */}
+          <Area dataKey="upper2" stroke="none" fill="#ef444415" legendType="none" name="upper2" />
+          <Area dataKey="lower2" stroke="none" fill="#22c55e15" legendType="none" name="lower2" />
 
           {/* ±1SD band */}
-          <Area
-            dataKey="upper1"
-            stroke="none"
-            fill="#ef444420"
-            legendType="none"
-            name="upper1"
-          />
-          <Area
-            dataKey="lower1"
-            stroke="none"
-            fill="#22c55e20"
-            legendType="none"
-            name="lower1"
-          />
+          <Area dataKey="upper1" stroke="none" fill="#ef444420" legendType="none" name="upper1" />
+          <Area dataKey="lower1" stroke="none" fill="#22c55e20" legendType="none" name="lower1" />
 
           {/* Mean line */}
           <Line
@@ -212,11 +203,11 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
             legendType="none"
           />
 
-          {/* Upper/Lower SD reference lines as lines */}
-          <Line dataKey="upper1" stroke="#ef444440" strokeWidth={1} dot={false} name="upper1" legendType="none" />
-          <Line dataKey="lower1" stroke="#22c55e40" strokeWidth={1} dot={false} name="lower1" legendType="none" />
-          <Line dataKey="upper2" stroke="#ef444425" strokeWidth={1} dot={false} name="upper2SD" legendType="none" />
-          <Line dataKey="lower2" stroke="#22c55e25" strokeWidth={1} dot={false} name="lower2SD" legendType="none" />
+          {/* SD boundary lines */}
+          <Line dataKey="upper1" stroke="#ef444440" strokeWidth={1} dot={false} name="upper1Line" legendType="none" />
+          <Line dataKey="lower1" stroke="#22c55e40" strokeWidth={1} dot={false} name="lower1Line" legendType="none" />
+          <Line dataKey="upper2" stroke="#ef444425" strokeWidth={1} dot={false} name="upper2Line" legendType="none" />
+          <Line dataKey="lower2" stroke="#22c55e25" strokeWidth={1} dot={false} name="lower2Line" legendType="none" />
 
           {/* Spread line */}
           <Line
@@ -228,18 +219,28 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
             activeDot={{ r: 3, fill: '#3b82f6' }}
           />
 
-          {/* Live spread marker */}
-          {liveSpreadPct != null && (
-            <ReferenceLine
-              y={liveSpreadPct}
-              stroke="#f59e0b"
-              strokeWidth={1.5}
-              strokeDasharray="6 3"
-              label={{ value: `Live ${liveSpreadPct.toFixed(1)}%`, fill: '#f59e0b', fontSize: 10, position: 'insideTopRight' }}
-            />
-          )}
+          {/* Live spread dot — positioned at the live data point */}
+          {liveSpreadPct != null && (() => {
+            const xVal = thinned[thinned.length - 1]?.date
+            return (
+              <ReferenceDot
+                x={xVal}
+                y={liveSpreadPct}
+                r={5}
+                fill="#f59e0b"
+                stroke="#1e293b"
+                strokeWidth={1.5}
+                label={{
+                  value: `${liveSpreadPct > 0 ? '+' : ''}${liveSpreadPct.toFixed(2)}%`,
+                  fill: '#f59e0b',
+                  fontSize: 10,
+                  position: 'top',
+                }}
+              />
+            )
+          })()}
 
-          {/* Mean reference line label */}
+          {/* Mean label */}
           {mean != null && (
             <ReferenceLine
               y={mean}
@@ -257,7 +258,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500/20 inline-block" /> +1/2SD</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500/20 inline-block" /> -1/2SD</span>
         {liveSpreadPct != null && (
-          <span className="flex items-center gap-1"><span className="w-4 h-px bg-amber-400 inline-block" /> Live</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Live</span>
         )}
       </div>
     </div>
