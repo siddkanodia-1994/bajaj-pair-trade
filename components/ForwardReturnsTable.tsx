@@ -7,7 +7,6 @@ interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   liveSpreadPct?: number
-  rollingMode: boolean
 }
 
 function fmt(n: number | null, d = 2) {
@@ -40,7 +39,7 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode: _rollingMode }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
