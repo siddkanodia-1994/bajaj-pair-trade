@@ -7,6 +7,7 @@ import SpreadChart from './SpreadChart'
 import StatisticsPanel from './StatisticsPanel'
 import SignalPanel from './SignalPanel'
 import ForwardReturnsTable from './ForwardReturnsTable'
+import ForwardReturnObservations from './ForwardReturnObservations'
 import DailySpreadTable from './DailySpreadTable'
 import SharesTab from './SharesTab'
 
@@ -179,6 +180,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
             <ForwardReturnsTable
               series={spreadSeries}
               selectedWindow={selectedWindow}
+              liveSpreadPct={liveSpreadPct}
+            />
+
+            {/* Analog Observations */}
+            <ForwardReturnObservations
+              series={spreadSeries}
               liveSpreadPct={liveSpreadPct}
             />
 

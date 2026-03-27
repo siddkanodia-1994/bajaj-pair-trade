@@ -101,6 +101,15 @@ export interface ForwardReturnRow {
   observations: number
 }
 
+export interface ForwardReturnObservation {
+  entry_date: string
+  entry_spread: number
+  exit_date: string
+  exit_spread: number
+  return_pp: number
+  calendar_days: number
+}
+
 export interface ShareHistoryRow {
   id: number
   company: string         // 'BAJFINANCE' | 'BAJAJFINSV'

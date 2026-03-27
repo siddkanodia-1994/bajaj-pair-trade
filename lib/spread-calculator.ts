@@ -5,6 +5,7 @@ import type {
   WindowKey,
   WindowStats,
   ForwardReturnRow,
+  ForwardReturnObservation,
 } from '@/types'
 import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
 
@@ -202,12 +203,19 @@ export function computeSpreadSeries(
 
 // ---------- Forward returns ----------
 
+/** Add `days` calendar days to a YYYY-MM-DD date string. */
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
 /**
  * Given the full spread series and the current spread value,
  * find historical dates where spread was within ±0.25pp of current spread,
- * and compute the forward spread change at each horizon.
+ * and compute the forward spread change at each horizon (calendar days).
  *
- * Forward return = spread_pct[t+h] - spread_pct[t]  (positive = spread widened)
+ * Forward return = exit_spread - entry_spread  (positive = spread widened)
  */
 export function computeForwardReturns(
   series: SpreadPoint[],
@@ -215,13 +223,9 @@ export function computeForwardReturns(
   selectedWindow: WindowKey,
   horizons: number[] = [5, 20, 40, 60, 90]
 ): ForwardReturnRow[] {
-  const SPREAD_BAND = 0.25  // ±0.25 percentage points
+  const SPREAD_BAND = 0.25
   const labels: Record<number, string> = {
-    5: '5 Days',
-    20: '20 Days',
-    40: '40 Days',
-    60: '60 Days',
-    90: '90 Days',
+    5: '5 Days', 20: '20 Days', 40: '40 Days', 60: '60 Days', 90: '90 Days',
   }
 
   const lastMean = series[series.length - 1]?.windows[selectedWindow]?.mean ?? null
@@ -230,20 +234,16 @@ export function computeForwardReturns(
   return horizons.map((h) => {
     const returns: number[] = []
 
-    for (let i = 0; i < series.length - h; i++) {
+    for (let i = 0; i < series.length - 1; i++) {
       if (Math.abs(series[i].spread_pct - currentSpread) > SPREAD_BAND) continue
-      returns.push(series[i + h].spread_pct - series[i].spread_pct)
+      const targetDate = addDays(series[i].date, h)
+      const exitIdx = series.findIndex((p, j) => j > i && p.date >= targetDate)
+      if (exitIdx === -1) continue
+      returns.push(series[exitIdx].spread_pct - series[i].spread_pct)
     }
 
     if (returns.length === 0) {
-      return {
-        horizon: h,
-        horizon_label: labels[h] ?? `${h}d`,
-        avg_return: null,
-        median_return: null,
-        win_rate: null,
-        observations: 0,
-      }
+      return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return: null, median_return: null, win_rate: null, observations: 0 }
     }
 
     const sorted = [...returns].sort((a, b) => a - b)
@@ -252,13 +252,39 @@ export function computeForwardReturns(
     const wins = expectedDirection !== 0 ? returns.filter((r) => r * expectedDirection > 0).length : 0
     const win_rate = expectedDirection !== 0 ? (wins / returns.length) * 100 : null
 
-    return {
-      horizon: h,
-      horizon_label: labels[h] ?? `${h}d`,
-      avg_return,
-      median_return,
-      win_rate,
-      observations: returns.length,
-    }
+    return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return, median_return, win_rate, observations: returns.length }
   })
+}
+
+/**
+ * Returns all individual analog observations for a given horizon (calendar days).
+ * Each row: entry date/spread, exit date/spread, return in pp, calendar days held.
+ */
+export function getForwardReturnObservations(
+  series: SpreadPoint[],
+  currentSpread: number,
+  horizon: number
+): ForwardReturnObservation[] {
+  const SPREAD_BAND = 0.25
+  const results: ForwardReturnObservation[] = []
+
+  for (let i = 0; i < series.length - 1; i++) {
+    if (Math.abs(series[i].spread_pct - currentSpread) > SPREAD_BAND) continue
+    const targetDate = addDays(series[i].date, horizon)
+    const exitIdx = series.findIndex((p, j) => j > i && p.date >= targetDate)
+    if (exitIdx === -1) continue
+    const calendarDays = Math.round(
+      (new Date(series[exitIdx].date).getTime() - new Date(series[i].date).getTime()) / 86_400_000
+    )
+    results.push({
+      entry_date: series[i].date,
+      entry_spread: series[i].spread_pct,
+      exit_date: series[exitIdx].date,
+      exit_spread: series[exitIdx].spread_pct,
+      return_pp: series[exitIdx].spread_pct - series[i].spread_pct,
+      calendar_days: calendarDays,
+    })
+  }
+
+  return results.sort((a, b) => a.entry_date.localeCompare(b.entry_date))
 }
