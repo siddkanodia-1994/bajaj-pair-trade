@@ -24,21 +24,21 @@ html {
 
 html.light {
   color-scheme: light;
-  --background: #ECE0D6;
-  --foreground: #1E1008;
+  --background: #F0EEED;
+  --foreground: #1F1410;
 
-  /* Surfaces — monochromatic tints of #C19875 */
-  --color-slate-950: #ECE0D6;   /* page bg (70% white tint) */
-  --color-slate-900: #E0CCBA;   /* card bg (50% white tint) */
-  --color-slate-800: #D4B79E;   /* secondary card (30% white tint) */
-  --color-slate-700: #C19875;   /* borders (base) */
-  --color-slate-600: #AE8969;   /* subtle borders (10% shade) */
+  /* Surfaces — monochromatic tints of #6C584C */
+  --color-slate-950: #F0EEED;   /* page bg (90% white tint) */
+  --color-slate-900: #DAD5D2;   /* card bg (75% white tint) */
+  --color-slate-800: #C4BCB7;   /* secondary card (60% white tint) */
+  --color-slate-700: #6C584C;   /* borders (base) */
+  --color-slate-600: #614F44;   /* subtle borders (10% shade) */
 
   /* Text — warm dark browns */
-  --color-slate-500: #7A5C43;
-  --color-slate-400: #5A3E2B;
-  --color-slate-300: #3A2518;
-  --color-slate-200: #1E1008;
+  --color-slate-500: #7B6456;
+  --color-slate-400: #5A4438;
+  --color-slate-300: #3D2E24;
+  --color-slate-200: #1F1410;
 
-  --color-white: #1E1008;
+  --color-white: #1F1410;
 }

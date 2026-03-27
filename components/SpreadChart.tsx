@@ -64,10 +64,10 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode, lightMode }: Props) {
   const chartColors = lightMode ? {
-    grid:     '#C19875',
-    axisTick: '#5A3E2B',
-    axisLine: '#7A5C43',
-    label:    '#5A3E2B',
+    grid:     '#6C584C',
+    axisTick: '#5A4438',
+    axisLine: '#7B6456',
+    label:    '#5A4438',
   } : {
     grid:     '#1e293b',
     axisTick: '#64748b',
