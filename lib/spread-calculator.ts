@@ -119,6 +119,31 @@ export function calendarRollingStats(
   })
 }
 
+/**
+ * Fixed-window stats: compute a single mean/SD for the entire value set.
+ * Returns z-score and percentile for `currentValue` against that fixed distribution.
+ */
+export function computeFixedWindowStats(
+  values: number[],
+  currentValue?: number
+): WindowStats {
+  if (values.length < 2) return NULL_STATS
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / (values.length - 1)
+  const std = Math.sqrt(variance)
+  const v = currentValue ?? mean
+  const zscore = std > 0 ? (v - mean) / std : 0
+  const below = values.filter((x) => x < v).length
+  const percentile_rank = (below / values.length) * 100
+  return {
+    mean, std, zscore, percentile_rank,
+    upper_1sd: mean + std,
+    lower_1sd: mean - std,
+    upper_2sd: mean + 2 * std,
+    lower_2sd: mean - 2 * std,
+  }
+}
+
 /** @deprecated Use calendarRollingStats instead. Kept for reference. */
 export function rollingWindowStats(values: number[], windowSize: number): WindowStats[] {
   return values.map((v, i) => {
@@ -178,33 +203,35 @@ export function computeSpreadSeries(
 // ---------- Forward returns ----------
 
 /**
- * Given the full spread series and a current z-score (for the selected window),
- * compute the expected forward spread change at each horizon.
+ * Given the full spread series and the current spread value,
+ * find historical dates where spread was within ±0.25pp of current spread,
+ * and compute the forward spread change at each horizon.
  *
- * "Similar" historical setups = z-score within ±0.5 of current zscore.
  * Forward return = spread_pct[t+h] - spread_pct[t]  (positive = spread widened)
  */
 export function computeForwardReturns(
   series: SpreadPoint[],
-  currentZscore: number,
+  currentSpread: number,
   selectedWindow: WindowKey,
-  horizons: number[] = [5, 20, 60, 90]
+  horizons: number[] = [5, 20, 40, 60, 90]
 ): ForwardReturnRow[] {
-  const ZSCORE_BAND = 0.75
+  const SPREAD_BAND = 0.25  // ±0.25 percentage points
   const labels: Record<number, string> = {
     5: '5 Days',
     20: '20 Days',
+    40: '40 Days',
     60: '60 Days',
     90: '90 Days',
   }
+
+  const lastMean = series[series.length - 1]?.windows[selectedWindow]?.mean ?? null
+  const expectedDirection = lastMean != null ? (currentSpread < lastMean ? 1 : -1) : 0
 
   return horizons.map((h) => {
     const returns: number[] = []
 
     for (let i = 0; i < series.length - h; i++) {
-      const z = series[i].windows[selectedWindow]?.zscore
-      if (z === null) continue
-      if (Math.abs(z - currentZscore) > ZSCORE_BAND) continue
+      if (Math.abs(series[i].spread_pct - currentSpread) > SPREAD_BAND) continue
       returns.push(series[i + h].spread_pct - series[i].spread_pct)
     }
 
@@ -222,10 +249,8 @@ export function computeForwardReturns(
     const sorted = [...returns].sort((a, b) => a - b)
     const avg_return = returns.reduce((a, b) => a + b, 0) / returns.length
     const median_return = sorted[Math.floor(sorted.length / 2)]
-    // "Win" = spread moves in the expected direction
-    const expectedDirection = currentZscore < 0 ? 1 : -1
-    const wins = returns.filter((r) => r * expectedDirection > 0).length
-    const win_rate = (wins / returns.length) * 100
+    const wins = expectedDirection !== 0 ? returns.filter((r) => r * expectedDirection > 0).length : 0
+    const win_rate = expectedDirection !== 0 ? (wins / returns.length) * 100 : null
 
     return {
       horizon: h,

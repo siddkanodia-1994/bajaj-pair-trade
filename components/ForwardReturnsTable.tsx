@@ -7,6 +7,7 @@ interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   liveSpreadPct?: number
+  rollingMode: boolean
 }
 
 function fmt(n: number | null, d = 2) {
@@ -39,29 +40,24 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode: _rollingMode }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
-  const ws = last.windows[selectedWindow]
   const spread = liveSpreadPct ?? last.spread_pct
+  const lastMean = last.windows[selectedWindow]?.mean ?? null
+  const expectedDirection = lastMean != null ? (spread < lastMean ? 1 : -1) : 0
 
-  const zscore =
-    ws?.mean != null && ws?.std != null && ws.std > 0
-      ? (spread - ws.mean) / ws.std
-      : ws?.zscore ?? null
-
-  const rows = computeForwardReturns(series, zscore ?? 0, selectedWindow, [5, 20, 60, 90])
-  const expectedDirection = (zscore ?? 0) < 0 ? 1 : -1 // 1 = spread should widen, -1 = should compress
+  const rows = computeForwardReturns(series, spread, selectedWindow)
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
-          Forward Returns at Similar Z-Scores (±0.75σ band)
+          Forward Returns at Similar Spreads (±0.25pp band)
         </h2>
         <div className="text-xs text-slate-500">
-          Current Z: {zscore != null ? (zscore > 0 ? '+' : '') + zscore.toFixed(2) : '—'} ({selectedWindow})
+          Current Spread: {spread > 0 ? '+' : ''}{spread.toFixed(2)}% ({selectedWindow})
         </div>
       </div>
 
