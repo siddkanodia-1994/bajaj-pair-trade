@@ -1,17 +1,24 @@
 'use client'
 
 import type { SpreadPoint, WindowKey } from '@/types'
-import { computeForwardReturns } from '@/lib/spread-calculator'
+import { WINDOW_MONTHS } from '@/types'
+import { computeForwardReturns, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   liveSpreadPct?: number
+  rollingMode: boolean
 }
 
 function fmt(n: number | null, d = 2) {
   if (n == null) return '—'
   return n > 0 ? `+${n.toFixed(d)}` : n.toFixed(d)
+}
+
+function fmtZ(n: number | null) {
+  if (n == null) return '—'
+  return `${n > 0 ? '+' : ''}${n.toFixed(2)}`
 }
 
 function pctFmt(n: number | null) {
@@ -39,24 +46,45 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
   const spread = liveSpreadPct ?? last.spread_pct
-  const lastMean = last.windows[selectedWindow]?.mean ?? null
-  const expectedDirection = lastMean != null ? (spread < lastMean ? 1 : -1) : 0
 
-  const rows = computeForwardReturns(series, spread, selectedWindow)
+  const visibleValues = selectedWindow === 'ALL'
+    ? series.map((p) => p.spread_pct)
+    : series.filter((p) => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
+
+  const currentZscore = (() => {
+    if (rollingMode) {
+      const ws = last.windows[selectedWindow]
+      return ws?.mean != null && ws?.std != null && ws.std > 0
+        ? (spread - ws.mean) / ws.std
+        : ws?.zscore ?? null
+    }
+    return computeFixedWindowStats(visibleValues, spread).zscore
+  })()
+
+  const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
+
+  const expectedDirection = currentZscore != null ? (currentZscore < 0 ? 1 : currentZscore > 0 ? -1 : 0) : 0
+
+  const rows = currentZscore != null
+    ? computeForwardReturns(
+        series, currentZscore, selectedWindow, rollingMode,
+        fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
+      )
+    : []
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
-          Forward Returns at Similar Spreads (±0.25pp band)
+          Forward Returns at Similar Z-Scores (±0.25 Z-score band)
         </h2>
         <div className="text-xs text-slate-500">
-          Current Spread: {spread > 0 ? '+' : ''}{spread.toFixed(2)}% ({selectedWindow})
+          Current Z ({selectedWindow}): {fmtZ(currentZscore)}
         </div>
       </div>
 

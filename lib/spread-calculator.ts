@@ -211,31 +211,42 @@ function addDays(dateStr: string, days: number): string {
 }
 
 /**
- * Given the full spread series and the current spread value,
- * find historical dates where spread was within ±0.25pp of current spread,
+ * Given the full spread series and the current z-score,
+ * find historical dates where z-score was within ±0.25 of current z-score,
  * and compute the forward spread change at each horizon (calendar days).
  *
  * Forward return = exit_spread - entry_spread  (positive = spread widened)
+ * Uses the same rolling/fixed-mode z-score logic as getForwardReturnObservations.
  */
 export function computeForwardReturns(
   series: SpreadPoint[],
-  currentSpread: number,
+  currentZscore: number,
   selectedWindow: WindowKey,
+  rollingMode: boolean,
+  fixedMean?: number,
+  fixedStd?: number,
   horizons: number[] = [5, 20, 40, 60, 90]
 ): ForwardReturnRow[] {
-  const SPREAD_BAND = 0.25
+  const ZSCORE_BAND = 0.25
   const labels: Record<number, string> = {
     5: '5 Days', 20: '20 Days', 40: '40 Days', 60: '60 Days', 90: '90 Days',
   }
 
-  const lastMean = series[series.length - 1]?.windows[selectedWindow]?.mean ?? null
-  const expectedDirection = lastMean != null ? (currentSpread < lastMean ? 1 : -1) : 0
+  const expectedDirection = currentZscore < 0 ? 1 : currentZscore > 0 ? -1 : 0
+
+  const getZ = (point: SpreadPoint): number | null => {
+    if (rollingMode) return point.windows[selectedWindow]?.zscore ?? null
+    if (fixedMean == null || fixedStd == null || fixedStd === 0) return null
+    return (point.spread_pct - fixedMean) / fixedStd
+  }
 
   return horizons.map((h) => {
     const returns: number[] = []
 
     for (let i = 0; i < series.length - 1; i++) {
-      if (Math.abs(series[i].spread_pct - currentSpread) > SPREAD_BAND) continue
+      const entryZ = getZ(series[i])
+      if (entryZ == null) continue
+      if (Math.abs(entryZ - currentZscore) > ZSCORE_BAND) continue
       const targetDate = addDays(series[i].date, h)
       const exitIdx = series.findIndex((p, j) => j > i && p.date >= targetDate)
       if (exitIdx === -1) continue

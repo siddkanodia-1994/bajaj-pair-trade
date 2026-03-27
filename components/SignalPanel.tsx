@@ -86,6 +86,10 @@ export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rol
 
   const spread = liveSpreadPct ?? last.spread_pct
 
+  const visibleValues = selectedWindow === 'ALL'
+    ? series.map((p) => p.spread_pct)
+    : series.filter((p) => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
+
   const zscore = (() => {
     if (rollingMode) {
       const ws = last.windows[selectedWindow]
@@ -93,14 +97,16 @@ export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rol
         ? (spread - ws.mean) / ws.std
         : ws?.zscore ?? null
     }
-    const lastDate = last.date
-    const visibleValues = selectedWindow === 'ALL'
-      ? series.map((p) => p.spread_pct)
-      : series.filter((p) => p.date >= subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
     return computeFixedWindowStats(visibleValues, spread).zscore
   })()
 
-  const forwardReturns = computeForwardReturns(series, zscore ?? 0, selectedWindow, [5, 20, 60, 90])
+  const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
+
+  const forwardReturns = computeForwardReturns(
+    series, zscore ?? 0, selectedWindow, rollingMode,
+    fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined,
+    [5, 20, 60, 90]
+  )
   const fwd5  = forwardReturns.find(r => r.horizon === 5)
   const fwd90 = forwardReturns.find(r => r.horizon === 90)
 
