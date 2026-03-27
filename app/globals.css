@@ -41,4 +41,19 @@ html.light {
   --color-slate-200: #1F1410;
 
   --color-white: #1F1410;
+
+  /* Functional colors — shift to darker variants for legibility on light bg */
+  --color-green-400: #16a34a;   /* → green-600 */
+  --color-green-300: #15803d;   /* → green-700 */
+  --color-green-500: #15803d;
+  --color-red-400:   #dc2626;   /* → red-600 */
+  --color-red-300:   #b91c1c;   /* → red-700 */
+  --color-red-500:   #b91c1c;
+  --color-blue-400:  #2563eb;   /* → blue-600 */
+  --color-blue-300:  #1d4ed8;   /* → blue-700 */
+  --color-orange-400: #ea580c;  /* → orange-600 */
+  --color-amber-400:  #b45309;  /* → amber-700 */
+  --color-purple-400: #7c3aed;  /* → purple-600 */
+  --color-emerald-400: #059669; /* → emerald-600 */
+  --color-emerald-300: #047857; /* → emerald-700 */
 }
