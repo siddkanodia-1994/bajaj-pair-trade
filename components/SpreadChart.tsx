@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
-  ReferenceDot,
   ResponsiveContainer,
 } from 'recharts'
 import type { SpreadPoint, WindowKey } from '@/types'
@@ -219,26 +218,21 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
             activeDot={{ r: 3, fill: '#3b82f6' }}
           />
 
-          {/* Live spread dot — positioned at the live data point */}
-          {liveSpreadPct != null && (() => {
-            const xVal = thinned[thinned.length - 1]?.date
-            return (
-              <ReferenceDot
-                x={xVal}
-                y={liveSpreadPct}
-                r={5}
-                fill="#f59e0b"
-                stroke="#1e293b"
-                strokeWidth={1.5}
-                label={{
-                  value: `${liveSpreadPct > 0 ? '+' : ''}${liveSpreadPct.toFixed(2)}%`,
-                  fill: '#f59e0b',
-                  fontSize: 10,
-                  position: 'top',
-                }}
-              />
-            )
-          })()}
+          {/* Live spread horizontal dotted line */}
+          {liveSpreadPct != null && (
+            <ReferenceLine
+              y={liveSpreadPct}
+              stroke="#f59e0b"
+              strokeWidth={1.5}
+              strokeDasharray="5 4"
+              label={{
+                value: `${liveSpreadPct > 0 ? '+' : ''}${liveSpreadPct.toFixed(2)}%`,
+                fill: '#f59e0b',
+                fontSize: 10,
+                position: 'insideTopRight',
+              }}
+            />
+          )}
 
           {/* Mean label */}
           {mean != null && (
@@ -258,7 +252,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500/20 inline-block" /> +1/2SD</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500/20 inline-block" /> -1/2SD</span>
         {liveSpreadPct != null && (
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Live</span>
+          <span className="flex items-center gap-1"><span className="w-4 h-px bg-amber-400 border-dashed border-t inline-block" /> Live</span>
         )}
       </div>
     </div>
