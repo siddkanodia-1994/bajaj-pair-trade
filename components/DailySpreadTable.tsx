@@ -42,6 +42,7 @@ interface DisplayRow {
   residual_value: number
   spread_pct: number
   stats: WindowStats
+  zscore: number | null
 }
 
 export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: Props) {
@@ -92,10 +93,13 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
         })()
       : null
 
-    const rows: DisplayRow[] = recomputed.map((r, i) => ({
-      ...r,
-      stats: fixedStats ?? statsArr[i],
-    }))
+    const rows: DisplayRow[] = recomputed.map((r, i) => {
+      const stats = fixedStats ?? statsArr[i]
+      const zscore = fixedStats != null && fixedStats.mean != null && fixedStats.std != null && fixedStats.std > 0
+        ? (r.spread_pct - fixedStats.mean) / fixedStats.std
+        : stats.zscore ?? null
+      return { ...r, stats, zscore }
+    })
 
     rows.sort((a, b) =>
       sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)
@@ -308,6 +312,7 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
               <th className="px-3 py-2.5 text-left text-slate-400 font-medium whitespace-nowrap">Date</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Stake %</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">% Spread</th>
+              <th className="px-3 py-2.5 text-right text-purple-400 font-medium whitespace-nowrap">Z-Score ({selectedWindow})</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Discount (₹ Cr)</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">MC Finance (₹ Cr)</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Stake Value (₹ Cr)</th>
@@ -341,6 +346,14 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
                   </td>
                   <td className={`px-3 py-2 text-right font-mono font-semibold ${spreadColor}`}>
                     {formatPct(row.spread_pct)}
+                  </td>
+                  <td className={`px-3 py-2 text-right font-mono font-semibold ${
+                    row.zscore == null ? 'text-slate-500'
+                    : row.zscore < 0 ? 'text-green-400'
+                    : row.zscore > 0 ? 'text-red-400'
+                    : 'text-slate-300'
+                  }`}>
+                    {row.zscore == null ? '—' : `${row.zscore > 0 ? '+' : ''}${row.zscore.toFixed(2)}`}
                   </td>
                   <td className={`px-3 py-2 text-right font-mono ${discountColor}`}>
                     {formatCr(row.residual_value)}
