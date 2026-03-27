@@ -347,12 +347,7 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode }: 
                   <td className={`px-3 py-2 text-right font-mono font-semibold ${spreadColor}`}>
                     {formatPct(row.spread_pct)}
                   </td>
-                  <td className={`px-3 py-2 text-right font-mono font-semibold ${
-                    row.zscore == null ? 'text-slate-500'
-                    : row.zscore < 0 ? 'text-green-400'
-                    : row.zscore > 0 ? 'text-red-400'
-                    : 'text-slate-300'
-                  }`}>
+                  <td className="px-3 py-2 text-right font-mono font-semibold text-white">
                     {row.zscore == null ? '—' : `${row.zscore > 0 ? '+' : ''}${row.zscore.toFixed(2)}`}
                   </td>
                   <td className={`px-3 py-2 text-right font-mono ${discountColor}`}>
