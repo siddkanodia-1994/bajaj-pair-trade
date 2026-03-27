@@ -186,7 +186,9 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
             {/* Analog Observations */}
             <ForwardReturnObservations
               series={spreadSeries}
+              selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
+              rollingMode={rollingMode}
             />
 
 

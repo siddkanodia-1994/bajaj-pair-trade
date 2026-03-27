@@ -103,8 +103,10 @@ export interface ForwardReturnRow {
 
 export interface ForwardReturnObservation {
   entry_date: string
+  entry_zscore: number | null
   entry_spread: number
   exit_date: string
+  exit_zscore: number | null
   exit_spread: number
   return_pp: number
   calendar_days: number
