@@ -155,3 +155,38 @@ export interface ShareHistoryRow {
   shares: number
   source: string | null
 }
+
+// ── Active Trade types ────────────────────────────────────────────────────────
+
+export interface TradeTranche {
+  id: number
+  trade_group: string
+  tranche_num: number
+  direction: 'long' | 'short'
+  window_key: string
+  entry_date: string
+  entry_spread: number
+  entry_z: number | null
+  size_label: string
+  status: 'open' | 'closed'
+  exit_date: string | null
+  exit_spread: number | null
+  exit_z: number | null
+  exit_reason: 'target' | 'time_stop' | 'hard_stop' | 'manual' | null
+  notes: string | null
+  created_at: string
+}
+
+export type TradeSignalAction =
+  | 'NEUTRAL' | 'WATCH' | 'ENTER' | 'ADD'
+  | 'HOLD' | 'EXIT_TARGET' | 'EXIT_TIME' | 'EXIT_HARD_STOP'
+
+export interface TradeSignal {
+  action: TradeSignalAction
+  urgency: 'none' | 'low' | 'medium' | 'high' | 'critical'
+  label: string
+  description: string
+  tailwindColor: string
+  bgClass: string
+  borderClass: string
+}

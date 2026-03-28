@@ -12,8 +12,9 @@ import ForwardReturnObservations from './ForwardReturnObservations'
 import DailySpreadTable from './DailySpreadTable'
 import SharesTab from './SharesTab'
 import RulesTab from './RulesTab'
+import ActiveTradeTab from './ActiveTradeTab'
 
-type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules'
+type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules' | 'active-trade'
 
 interface Props {
   spreadSeries: SpreadPoint[]
@@ -138,6 +139,9 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
           <button onClick={() => setActiveTab('rules')} className={TAB_STYLE('rules')}>
             Rules
           </button>
+          <button onClick={() => setActiveTab('active-trade')} className={TAB_STYLE('active-trade')}>
+            Active Trade
+          </button>
         </div>
       </header>
 
@@ -245,6 +249,17 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               </p>
             </div>
             <RulesTab rules={activeRules} onRulesChange={setActiveRules} />
+          </div>
+        )}
+
+        {activeTab === 'active-trade' && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <ActiveTradeTab
+              series={activeSpreadSeries}
+              selectedWindow={selectedWindow}
+              liveSpreadPct={liveSpreadPct}
+              rules={activeRules}
+            />
           </div>
         )}
 
