@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import type { SpreadPoint, StakeHistoryRow, WindowKey, WindowStats } from '@/types'
 import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
 import { calendarRollingStats, computeFixedWindowStats, subtractMonths, getApplicableStake, getQuarterEndDate } from '@/lib/spread-calculator'
@@ -10,6 +10,7 @@ interface Props {
   stakes: StakeHistoryRow[]
   rollingMode: boolean
   onStakesChange: (updated: StakeHistoryRow[]) => void
+  externalWindow?: WindowKey
 }
 
 const PAGE_SIZE = 100
@@ -46,7 +47,7 @@ interface DisplayRow {
   zscore: number | null
 }
 
-export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, onStakesChange }: Props) {
+export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, onStakesChange, externalWindow }: Props) {
   const [editValues, setEditValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(stakes.map((s) => [s.quarter_end_date, String(s.stake_pct)]))
   )
@@ -54,7 +55,8 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, on
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [stakeEditorOpen, setStakeEditorOpen] = useState(false)
 
-  const [selectedWindow, setSelectedWindow] = useState<WindowKey>('1Y')
+  const [selectedWindow, setSelectedWindow] = useState<WindowKey>(externalWindow ?? '1Y')
+  useEffect(() => { if (externalWindow) setSelectedWindow(externalWindow) }, [externalWindow])
   const [page, setPage] = useState(0)
   const [sortDesc, setSortDesc] = useState(true)
 

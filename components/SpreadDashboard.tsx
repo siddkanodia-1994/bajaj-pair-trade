@@ -26,7 +26,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('1Y')
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
-  const [rollingMode, setRollingMode] = useState(true)
+  const [rollingMode, setRollingMode] = useState(false)
   const [lightMode, setLightMode] = useState(false)
   const [currentStakes, setCurrentStakes] = useState<StakeHistoryRow[]>(stakes)
   const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
@@ -221,6 +221,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               stakes={currentStakes}
               rollingMode={rollingMode}
               onStakesChange={setCurrentStakes}
+              externalWindow={selectedWindow}
             />
           </div>
         )}

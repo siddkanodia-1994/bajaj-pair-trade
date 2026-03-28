@@ -40,6 +40,7 @@ function fmtReturn(n: number) {
 
 export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules, filterYear, filterMonth, onFilterChange }: Props) {
   const [selectedHorizon, setSelectedHorizon] = useState(20)
+  const [zOverrideInput, setZOverrideInput] = useState('')
 
   const last = series[series.length - 1]
   const first = series[0]
@@ -66,7 +67,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
     ? series.map((p) => p.spread_pct)
     : series.filter((p) => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
 
-  const currentZscore = (() => {
+  const computedZscore = (() => {
     if (rollingMode) {
       const ws = last.windows[selectedWindow]
       return ws?.mean != null && ws?.std != null && ws.std > 0
@@ -75,6 +76,9 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
     }
     return computeFixedWindowStats(visibleValues, spread).zscore
   })()
+
+  const parsedOverride = zOverrideInput !== '' ? parseFloat(zOverrideInput) : null
+  const currentZscore = (parsedOverride != null && !isNaN(parsedOverride)) ? parsedOverride : computedZscore
 
   const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
 
@@ -92,11 +96,28 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
             Analog Observations
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Historical instances where Z-score ({selectedWindow}) was within ±{rules.entry_band} of current
-            {currentZscore != null ? ` (Z: ${fmtZ(currentZscore)})` : ''}
-            {' '}· Exit at z ∈ [{rules.exit_zone_lo}, {rules.exit_zone_hi}] or time stop
-          </p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <p className="text-xs text-slate-500">
+              Historical instances where Z-score ({selectedWindow}) was within ±{rules.entry_band} of
+              {' '}· Exit at z ∈ [{rules.exit_zone_lo}, {rules.exit_zone_hi}] or time stop
+            </p>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-500">Z:</span>
+              <input
+                type="number"
+                step="0.01"
+                value={zOverrideInput !== '' ? zOverrideInput : (computedZscore != null ? computedZscore.toFixed(2) : '')}
+                onChange={e => setZOverrideInput(e.target.value)}
+                onFocus={e => { if (zOverrideInput === '') setZOverrideInput(computedZscore != null ? computedZscore.toFixed(2) : '') }}
+                onBlur={e => { if (e.target.value === '' || isNaN(parseFloat(e.target.value))) setZOverrideInput('') }}
+                className="w-20 text-xs bg-slate-700 border border-slate-600 text-blue-300 font-medium rounded px-2 py-0.5 focus:outline-none focus:border-blue-500"
+                title="Override Z-score (leave blank to use computed value)"
+              />
+              {zOverrideInput !== '' && (
+                <button onClick={() => setZOverrideInput('')} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {/* Date slicer */}
