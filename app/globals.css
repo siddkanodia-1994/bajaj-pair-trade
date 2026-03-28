@@ -27,33 +27,43 @@ html.light {
   --background: #F0EEED;
   --foreground: #1F1410;
 
-  /* Surfaces — monochromatic tints of #6C584C */
-  --color-slate-950: #F0EEED;   /* page bg (90% white tint) */
-  --color-slate-900: #DAD5D2;   /* card bg (75% white tint) */
-  --color-slate-800: #C4BCB7;   /* secondary card (60% white tint) */
-  --color-slate-700: #6C584C;   /* borders (base) */
-  --color-slate-600: #614F44;   /* subtle borders (10% shade) */
+  /* Surfaces — smooth warm scale */
+  --color-slate-950: #F0EEED;   /* page bg */
+  --color-slate-900: #DAD5D2;   /* card bg */
+  --color-slate-800: #C4BCB7;   /* secondary card / inner sections */
+  --color-slate-700: #B8ADA8;   /* input bg, badge bg, borders — light enough for dark text */
+  --color-slate-600: #9A8D86;   /* stronger borders, focus rings */
 
   /* Text — warm dark browns */
-  --color-slate-500: #7B6456;
-  --color-slate-400: #5A4438;
-  --color-slate-300: #3D2E24;
-  --color-slate-200: #1F1410;
+  --color-slate-500: #7B6456;   /* muted labels */
+  --color-slate-400: #4A3428;   /* secondary text — slightly darker for badge contrast */
+  --color-slate-300: #3D2E24;   /* primary text */
+  --color-slate-200: #1F1410;   /* emphasis text */
 
   --color-white: #1F1410;
 
-  /* Functional colors — shift to darker variants for legibility on light bg */
-  --color-green-400: #16a34a;   /* → green-600 */
-  --color-green-300: #15803d;   /* → green-700 */
+  /* Badge backgrounds — need light tints not dark ones */
+  --color-green-900: #dcfce7;
+  --color-green-800: #bbf7d0;
+  --color-amber-900: #fef9c3;
+  --color-amber-800: #fef08a;
+  --color-red-900:   #fee2e2;
+  --color-red-800:   #fecaca;
+  --color-blue-900:  #dbeafe;
+  --color-blue-800:  #bfdbfe;
+
+  /* Functional colors — darker variants for legibility on light bg */
+  --color-green-400: #16a34a;
+  --color-green-300: #15803d;
   --color-green-500: #15803d;
-  --color-red-400:   #dc2626;   /* → red-600 */
-  --color-red-300:   #b91c1c;   /* → red-700 */
+  --color-red-400:   #dc2626;
+  --color-red-300:   #b91c1c;
   --color-red-500:   #b91c1c;
-  --color-blue-400:  #2563eb;   /* → blue-600 */
-  --color-blue-300:  #1d4ed8;   /* → blue-700 */
-  --color-orange-400: #ea580c;  /* → orange-600 */
-  --color-amber-400:  #b45309;  /* → amber-700 */
-  --color-purple-400: #7c3aed;  /* → purple-600 */
-  --color-emerald-400: #059669; /* → emerald-600 */
-  --color-emerald-300: #047857; /* → emerald-700 */
+  --color-blue-400:  #2563eb;
+  --color-blue-300:  #1d4ed8;
+  --color-orange-400: #ea580c;
+  --color-amber-400:  #b45309;
+  --color-purple-400: #7c3aed;
+  --color-emerald-400: #059669;
+  --color-emerald-300: #047857;
 }
