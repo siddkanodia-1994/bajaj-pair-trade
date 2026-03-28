@@ -239,7 +239,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
       )}
 
       {/* Trade history */}
-      <TradeHistoryTable closedTranches={closedTranches} />
+      <TradeHistoryTable closedTranches={closedTranches} onDelete={handleDeleteTranche} />
     </div>
   )
 }
