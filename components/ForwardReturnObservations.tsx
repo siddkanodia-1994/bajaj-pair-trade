@@ -41,7 +41,7 @@ function fmtReturn(n: number) {
 }
 
 export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules, filterYear, filterMonth, onFilterChange, zOverride, onZOverrideChange }: Props) {
-  const [selectedHorizon, setSelectedHorizon] = useState(20)
+  const [selectedHorizon, setSelectedHorizon] = useState(60)
   // Local string state for the input field
   const [zInputStr, setZInputStr] = useState('')
 
