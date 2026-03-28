@@ -241,8 +241,8 @@ export default function TradeSignalCard({
                   className="px-4 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Saving…' : openTranches.length === 0
-                    ? `Confirm Entry — Tranche 1 (${manualSize})`
-                    : `Confirm Add — Tranche ${openTranches.length + 1} (${manualSize})`}
+                    ? 'Confirm Entry — Tranche 1'
+                    : `Confirm Add — Tranche ${openTranches.length + 1}`}
                 </button>
                 <button
                   onClick={() => setManualOpen(false)}
