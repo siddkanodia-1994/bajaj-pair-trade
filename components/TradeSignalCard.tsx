@@ -4,14 +4,16 @@ import { useState } from 'react'
 import type { TradeSignal, TradeTranche } from '@/types'
 import { getBlendedEntry, getDaysHeld } from '@/lib/trade-signals'
 
+type Overrides = { spread: number; z: number | null; date: string }
+
 interface Props {
   signal: TradeSignal
   currentZ: number | null
   liveSpreadPct: number | null
   selectedWindow: string
   openTranches: TradeTranche[]
-  onEnter: () => void
-  onAdd: () => void
+  onEnter: (ov?: Overrides) => void
+  onAdd: (ov?: Overrides) => void
   onExitAll: (reason: 'target' | 'time_stop' | 'hard_stop' | 'manual') => void
   saving: boolean
 }
@@ -32,7 +34,29 @@ export default function TradeSignalCard({
   openTranches, onEnter, onAdd, onExitAll, saving,
 }: Props) {
   const [manualOpen, setManualOpen] = useState(false)
+  const [manualSpread, setManualSpread] = useState('')
+  const [manualZ, setManualZ] = useState('')
+  const [manualDate, setManualDate] = useState('')
+
+  const todayISO = new Date().toISOString().split('T')[0]
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  function openManual() {
+    setManualSpread(liveSpreadPct != null ? liveSpreadPct.toFixed(2) : '')
+    setManualZ(currentZ != null ? currentZ.toFixed(2) : '')
+    setManualDate(todayISO)
+    setManualOpen(true)
+  }
+
+  function submitManual() {
+    const spread = parseFloat(manualSpread)
+    const z = manualZ !== '' ? parseFloat(manualZ) : null
+    const date = manualDate || todayISO
+    if (isNaN(spread)) return
+    const ov = { spread, z: isNaN(z as number) ? null : z, date }
+    openTranches.length === 0 ? onEnter(ov) : onAdd(ov)
+    setManualOpen(false)
+  }
   const spreadStr = liveSpreadPct != null ? `${liveSpreadPct.toFixed(2)}%` : '—'
   const zStr = currentZ != null ? fmt(currentZ) : '—'
 
@@ -81,7 +105,7 @@ export default function TradeSignalCard({
           </div>
           {isEnter && (
             <button
-              onClick={onEnter}
+              onClick={() => onEnter()}
               disabled={saving}
               className="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -90,7 +114,7 @@ export default function TradeSignalCard({
           )}
           {isAdd && (
             <button
-              onClick={onAdd}
+              onClick={() => onAdd()}
               disabled={saving}
               className="px-5 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -145,7 +169,7 @@ export default function TradeSignalCard({
       {openTranches.length < 3 && !isEnter && !isAdd && (
         <div className="mt-4 pt-3 border-t border-slate-700/30">
           <button
-            onClick={() => setManualOpen((o) => !o)}
+            onClick={() => manualOpen ? setManualOpen(false) : openManual()}
             className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
           >
             <span>{manualOpen ? '▾' : '▸'}</span>
@@ -157,18 +181,50 @@ export default function TradeSignalCard({
           {manualOpen && (
             <div className="mt-3 rounded-lg border border-slate-600 bg-slate-900/60 p-4">
               <div className="text-xs text-slate-500 mb-3">
-                Override — stamp entry at current live data regardless of signal:
+                Override — edit any field before confirming:
               </div>
-              <div className="flex flex-wrap gap-4 text-sm mb-4">
-                <span className="text-slate-300">Spread: <span className="font-medium text-white">{spreadStr}</span></span>
-                <span className="text-slate-300">Z-Score: <span className="font-medium text-white">{zStr}</span></span>
-                <span className="text-slate-300">Date: <span className="font-medium text-white">{today}</span></span>
-                <span className="text-slate-300">Window: <span className="font-medium text-white">{selectedWindow}</span></span>
+              <div className="flex flex-wrap gap-3 mb-4">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">Spread (%)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualSpread}
+                    onChange={(e) => setManualSpread(e.target.value)}
+                    className="w-28 text-sm bg-slate-700 border border-slate-500 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">Z-Score</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualZ}
+                    onChange={(e) => setManualZ(e.target.value)}
+                    placeholder="optional"
+                    className="w-28 text-sm bg-slate-700 border border-slate-500 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 placeholder:text-slate-600"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">Entry Date</span>
+                  <input
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="text-sm bg-slate-700 border border-slate-500 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">Window</span>
+                  <div className="text-sm bg-slate-800 border border-slate-700 text-slate-400 rounded px-2 py-1.5 w-20">
+                    {selectedWindow}
+                  </div>
+                </label>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <button
-                  onClick={() => { openTranches.length === 0 ? onEnter() : onAdd(); setManualOpen(false) }}
-                  disabled={saving}
+                  onClick={submitManual}
+                  disabled={saving || manualSpread === '' || isNaN(parseFloat(manualSpread))}
                   className="px-4 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Saving…' : openTranches.length === 0
@@ -181,6 +237,9 @@ export default function TradeSignalCard({
                 >
                   Cancel
                 </button>
+                {manualSpread !== '' && isNaN(parseFloat(manualSpread)) && (
+                  <span className="text-xs text-red-400">Invalid spread value</span>
+                )}
               </div>
             </div>
           )}
