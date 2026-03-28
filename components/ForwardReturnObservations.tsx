@@ -11,6 +11,9 @@ interface Props {
   liveSpreadPct?: number
   rollingMode: boolean
   rules: TradingRules
+  filterYear: number | null
+  filterMonth: number
+  onFilterChange: (year: number | null, month: number) => void
 }
 
 const HORIZONS = [5, 20, 40, 60, 90]
@@ -35,7 +38,7 @@ function fmtReturn(n: number) {
   return `${n > 0 ? '+' : ''}${n.toFixed(2)}pp`
 }
 
-export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules }: Props) {
+export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules, filterYear, filterMonth, onFilterChange }: Props) {
   const [selectedHorizon, setSelectedHorizon] = useState(20)
 
   const last = series[series.length - 1]
@@ -45,9 +48,6 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
   const minYear = parseInt(first.date.slice(0, 4))
   const maxYear = parseInt(last.date.slice(0, 4))
   const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i)
-
-  const [filterYear, setFilterYear] = useState<number | null>(null)
-  const [filterMonth, setFilterMonth] = useState<number>(0) // 0-indexed
 
   const startDate = useMemo(() => {
     if (filterYear == null) return null
@@ -104,7 +104,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
             <span className="text-xs text-slate-500">From:</span>
             <select
               value={filterYear ?? ''}
-              onChange={e => setFilterYear(e.target.value ? parseInt(e.target.value) : null)}
+              onChange={e => onFilterChange(e.target.value ? parseInt(e.target.value) : null, filterMonth)}
               className="text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-2 py-1 focus:outline-none"
             >
               <option value="">All</option>
@@ -113,7 +113,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
             {filterYear != null && (
               <select
                 value={filterMonth}
-                onChange={e => setFilterMonth(parseInt(e.target.value))}
+                onChange={e => onFilterChange(filterYear, parseInt(e.target.value))}
                 className="text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-2 py-1 focus:outline-none"
               >
                 {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}

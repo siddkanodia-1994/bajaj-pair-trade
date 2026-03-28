@@ -10,6 +10,7 @@ interface Props {
   liveSpreadPct?: number
   rollingMode: boolean
   rules: TradingRules
+  obsStartDate?: string | null
 }
 
 function fmt(n: number | null, d = 2) {
@@ -47,9 +48,11 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules, obsStartDate }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
+
+  const scanSeries = obsStartDate ? series.filter(p => p.date >= obsStartDate) : series
 
   const spread = liveSpreadPct ?? last.spread_pct
 
@@ -73,7 +76,7 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
 
   const rows = currentZscore != null
     ? computeForwardReturns(
-        series, currentZscore, selectedWindow, rollingMode, rules,
+        scanSeries, currentZscore, selectedWindow, rollingMode, rules,
         fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
       )
     : []

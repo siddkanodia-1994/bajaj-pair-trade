@@ -30,6 +30,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [lightMode, setLightMode] = useState(false)
   const [currentStakes, setCurrentStakes] = useState<StakeHistoryRow[]>(stakes)
   const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
+  const [obsFilterYear, setObsFilterYear] = useState<number | null>(2022)
+  const [obsFilterMonth, setObsFilterMonth] = useState<number>(0) // Jan
+
+  const obsStartDate = obsFilterYear != null
+    ? `${obsFilterYear}-${String(obsFilterMonth + 1).padStart(2, '0')}-01`
+    : null
 
   const activeSpreadSeries = useMemo(
     () => recomputeSpreadSeries(spreadSeries, currentStakes),
@@ -184,6 +190,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
               rules={activeRules}
+              obsStartDate={obsStartDate}
             />
 
             {/* Analog Observations */}
@@ -193,6 +200,9 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
               rules={activeRules}
+              filterYear={obsFilterYear}
+              filterMonth={obsFilterMonth}
+              onFilterChange={(year, month) => { setObsFilterYear(year); setObsFilterMonth(month) }}
             />
           </>
         )}
