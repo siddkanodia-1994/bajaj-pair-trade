@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { LiveSpreadData } from '@/types'
-import { WINDOW_MONTHS } from '@/types'
+import type { LiveSpreadData, TradingRules } from '@/types'
+import { WINDOW_MONTHS, DEFAULT_RULES } from '@/types'
 import { generateSignal } from '@/lib/signal-generator'
 import type { SpreadPoint, WindowKey } from '@/types'
 import { computeForwardReturns, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
@@ -13,6 +13,7 @@ interface Props {
   spreadSeries: SpreadPoint[]
   selectedWindow: WindowKey
   onDataLoaded?: (data: LiveSpreadData) => void
+  rules?: TradingRules
 }
 
 function fmt(n: number, decimals = 2) {
@@ -24,7 +25,7 @@ function fmtCrore(n: number) {
   return `₹${(n / 1000).toFixed(1)}k cr`
 }
 
-export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWindow, rollingMode, onDataLoaded }: Props) {
+export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWindow, rollingMode, onDataLoaded, rules = DEFAULT_RULES }: Props) {
   const [data, setData] = useState<LiveSpreadData | null>(initialData)
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
@@ -83,7 +84,7 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
     return computeFixedWindowStats(visibleValues, data.spread_pct).zscore
   })()
 
-  const signal = generateSignal(liveZscore)
+  const signal = generateSignal(liveZscore, rules)
 
   const signalBgMap: Record<string, string> = {
     STRONG_LONG:  'bg-green-500/10 border-green-500',

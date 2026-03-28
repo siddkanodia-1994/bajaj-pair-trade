@@ -154,6 +154,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               selectedWindow={selectedWindow}
               rollingMode={rollingMode}
               onDataLoaded={setLiveData}
+              rules={activeRules}
             />
 
             {/* Chart + Stats */}
@@ -174,6 +175,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                   selectedWindow={selectedWindow}
                   liveSpreadPct={liveSpreadPct}
                   rollingMode={rollingMode}
+                  rules={activeRules}
                 />
               </div>
             </div>

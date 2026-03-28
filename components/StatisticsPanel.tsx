@@ -1,7 +1,7 @@
 'use client'
 
-import type { SpreadPoint, WindowKey } from '@/types'
-import { WINDOW_KEYS, WINDOW_MONTHS } from '@/types'
+import type { SpreadPoint, WindowKey, TradingRules } from '@/types'
+import { WINDOW_KEYS, WINDOW_MONTHS, DEFAULT_RULES } from '@/types'
 import { generateSignal } from '@/lib/signal-generator'
 import { subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
@@ -10,6 +10,7 @@ interface Props {
   selectedWindow: WindowKey
   liveSpreadPct?: number
   rollingMode: boolean
+  rules?: TradingRules
 }
 
 function fmt(n: number | null, d = 2) {
@@ -25,7 +26,7 @@ function zscoreBar(z: number | null) {
   return { pct, color }
 }
 
-export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
+export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct, rollingMode, rules = DEFAULT_RULES }: Props) {
   const last = series[series.length - 1]
   if (!last) {
     return (
@@ -53,7 +54,7 @@ export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct,
       ? (spread - ws.mean) / ws.std
       : ws?.zscore ?? null
 
-  const signal = generateSignal(liveZscore)
+  const signal = generateSignal(liveZscore, rules)
   const bar = zscoreBar(liveZscore)
 
   return (
@@ -120,7 +121,7 @@ export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct,
               const z = w?.mean != null && w?.std != null && w.std > 0
                 ? (spread - w.mean) / w.std
                 : w?.zscore ?? null
-              const sig = generateSignal(z)
+              const sig = generateSignal(z, rules)
               const isSelected = wk === selectedWindow
               return (
                 <tr
