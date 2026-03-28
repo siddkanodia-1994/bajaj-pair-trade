@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { SpreadPoint, WindowKey, TradingRules } from '@/types'
 import { WINDOW_MONTHS } from '@/types'
 import { getExitBasedObservations, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
@@ -14,6 +14,7 @@ interface Props {
 }
 
 const HORIZONS = [5, 20, 40, 60, 90]
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function fmtDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', {
@@ -38,7 +39,26 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
   const [selectedHorizon, setSelectedHorizon] = useState(20)
 
   const last = series[series.length - 1]
-  if (!last) return null
+  const first = series[0]
+  if (!last || !first) return null
+
+  const minYear = parseInt(first.date.slice(0, 4))
+  const maxYear = parseInt(last.date.slice(0, 4))
+  const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i)
+
+  const [filterYear, setFilterYear] = useState<number | null>(null)
+  const [filterMonth, setFilterMonth] = useState<number>(0) // 0-indexed
+
+  const startDate = useMemo(() => {
+    if (filterYear == null) return null
+    const mm = String(filterMonth + 1).padStart(2, '0')
+    return `${filterYear}-${mm}-01`
+  }, [filterYear, filterMonth])
+
+  const filteredSeries = useMemo(
+    () => startDate ? series.filter(p => p.date >= startDate) : series,
+    [series, startDate]
+  )
 
   const spread = liveSpreadPct ?? last.spread_pct
 
@@ -60,15 +80,15 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
 
   const observations = currentZscore != null
     ? getExitBasedObservations(
-        series, currentZscore, selectedWindow, selectedHorizon,
+        filteredSeries, currentZscore, selectedWindow, selectedHorizon,
         rollingMode, rules, fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
       )
     : []
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-start justify-between mb-4 gap-4">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
             Analog Observations
           </h2>
@@ -78,20 +98,44 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
             {' '}· Exit at z ∈ [{rules.exit_zone_lo}, {rules.exit_zone_hi}] or time stop
           </p>
         </div>
-        <div className="flex gap-1">
-          {HORIZONS.map((h) => (
-            <button
-              key={h}
-              onClick={() => setSelectedHorizon(h)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                selectedHorizon === h
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
-              }`}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Date slicer */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">From:</span>
+            <select
+              value={filterYear ?? ''}
+              onChange={e => setFilterYear(e.target.value ? parseInt(e.target.value) : null)}
+              className="text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-2 py-1 focus:outline-none"
             >
-              {h}d
-            </button>
-          ))}
+              <option value="">All</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            {filterYear != null && (
+              <select
+                value={filterMonth}
+                onChange={e => setFilterMonth(parseInt(e.target.value))}
+                className="text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-2 py-1 focus:outline-none"
+              >
+                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+            )}
+          </div>
+          {/* Horizon pills */}
+          <div className="flex gap-1">
+            {HORIZONS.map((h) => (
+              <button
+                key={h}
+                onClick={() => setSelectedHorizon(h)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  selectedHorizon === h
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                }`}
+              >
+                {h}d
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
