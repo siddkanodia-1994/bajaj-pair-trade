@@ -6,8 +6,9 @@ import type {
   WindowStats,
   ForwardReturnRow,
   ForwardReturnObservation,
+  TradingRules,
 } from '@/types'
-import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
+import { WINDOW_MONTHS, WINDOW_KEYS, DEFAULT_RULES } from '@/types'
 
 // ---------- Stake lookup ----------
 
@@ -236,7 +237,7 @@ export function recomputeSpreadSeries(
   })
 }
 
-// ---------- Forward returns ----------
+// ---------- Forward returns (exit-based) ----------
 
 /** Add `days` calendar days to a YYYY-MM-DD date string. */
 function addDays(dateStr: string, days: number): string {
@@ -245,29 +246,82 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split('T')[0]
 }
 
+/** Calendar days between two YYYY-MM-DD strings. */
+function calDaysBetween(a: string, b: string): number {
+  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000)
+}
+
 /**
- * Given the full spread series and the current z-score,
- * find historical dates where z-score was within ±0.25 of current z-score,
- * and compute the forward spread change at each horizon (calendar days).
- *
- * Forward return = exit_spread - entry_spread  (positive = spread widened)
- * Uses the same rolling/fixed-mode z-score logic as getForwardReturnObservations.
+ * Map horizon → time stop (calendar days) from rules.
+ * Horizons 5/20/40/60/90 map to time_stop_5d etc.
  */
-export function computeForwardReturns(
+function getTimeStop(horizon: number, rules: TradingRules): number {
+  const map: Record<number, keyof TradingRules> = {
+    5: 'time_stop_5d', 20: 'time_stop_20d', 40: 'time_stop_40d',
+    60: 'time_stop_60d', 90: 'time_stop_90d',
+  }
+  const key = map[horizon]
+  return key ? (rules[key] as number) : horizon
+}
+
+/**
+ * Returns true if z is in the exit zone for the given direction.
+ * Long exit zone: [exit_zone_lo, exit_zone_hi]
+ * Short exit zone: [-exit_zone_hi, -exit_zone_lo]  (mirrored)
+ */
+function inExitZone(z: number, direction: 'long' | 'short', rules: TradingRules): boolean {
+  if (direction === 'long') {
+    return z >= rules.exit_zone_lo && z <= rules.exit_zone_hi
+  }
+  // short: mirrored
+  return z >= -rules.exit_zone_hi && z <= -rules.exit_zone_lo
+}
+
+/**
+ * Walk forward from entryIdx to find the exit point.
+ * Exits when z-score enters exit zone (target) OR calendar days ≥ timeStop (time stop).
+ * Returns null if we reach end of series without exit (open trade — excluded from stats).
+ */
+function findExit(
+  series: SpreadPoint[],
+  getZ: (p: SpreadPoint) => number | null,
+  entryIdx: number,
+  timeStop: number,
+  direction: 'long' | 'short',
+  rules: TradingRules
+): { exitIdx: number; exit_reason: 'target' | 'time_stop' } | null {
+  const entryDate = series[entryIdx].date
+  for (let j = entryIdx + 1; j < series.length; j++) {
+    const calDays = calDaysBetween(entryDate, series[j].date)
+    const z = getZ(series[j])
+    if (z != null && inExitZone(z, direction, rules)) {
+      return { exitIdx: j, exit_reason: 'target' }
+    }
+    if (calDays >= timeStop) {
+      return { exitIdx: j, exit_reason: 'time_stop' }
+    }
+  }
+  return null // open trade
+}
+
+/**
+ * Scans the series for analog entries matching currentZscore ± entry_band,
+ * applies de-duplication (no new entry if trade open, unless z moved add_to_trade_gap further),
+ * exits at z-score entering exit zone OR horizon time stop.
+ */
+export function getExitBasedObservations(
   series: SpreadPoint[],
   currentZscore: number,
   selectedWindow: WindowKey,
+  horizon: number,
   rollingMode: boolean,
+  rules: TradingRules,
   fixedMean?: number,
-  fixedStd?: number,
-  horizons: number[] = [5, 20, 40, 60, 90]
-): ForwardReturnRow[] {
-  const ZSCORE_BAND = 0.25
-  const labels: Record<number, string> = {
-    5: '5 Days', 20: '20 Days', 40: '40 Days', 60: '60 Days', 90: '90 Days',
-  }
-
-  const expectedDirection = currentZscore < 0 ? 1 : currentZscore > 0 ? -1 : 0
+  fixedStd?: number
+): ForwardReturnObservation[] {
+  const direction: 'long' | 'short' = currentZscore <= 0 ? 'long' : 'short'
+  const timeStop = getTimeStop(horizon, rules)
+  const results: ForwardReturnObservation[] = []
 
   const getZ = (point: SpreadPoint): number | null => {
     if (rollingMode) return point.windows[selectedWindow]?.zscore ?? null
@@ -275,40 +329,91 @@ export function computeForwardReturns(
     return (point.spread_pct - fixedMean) / fixedStd
   }
 
+  let lastExitIdx = -1         // index of the last closed trade's exit
+  let lastEntryZ: number | null = null  // z-score at last accepted entry
+
+  for (let i = 0; i < series.length - 1; i++) {
+    const entryZ = getZ(series[i])
+    if (entryZ == null) continue
+    if (Math.abs(entryZ - currentZscore) > rules.entry_band) continue
+
+    // De-duplication: skip if prior trade still open (exit is ahead of i)
+    if (lastExitIdx >= i) {
+      // Allow add-to-trade: accept if z moved add_to_trade_gap further in direction
+      if (lastEntryZ == null) continue
+      const movedFurther = direction === 'long'
+        ? entryZ <= lastEntryZ - rules.add_to_trade_gap
+        : entryZ >= lastEntryZ + rules.add_to_trade_gap
+      if (!movedFurther) continue
+    }
+
+    const exitResult = findExit(series, getZ, i, timeStop, direction, rules)
+    if (exitResult == null) continue // open trade — skip
+
+    const { exitIdx, exit_reason } = exitResult
+    const exitPoint = series[exitIdx]
+    const entryPoint = series[i]
+
+    results.push({
+      entry_date: entryPoint.date,
+      entry_zscore: entryZ,
+      entry_spread: entryPoint.spread_pct,
+      exit_date: exitPoint.date,
+      exit_zscore: getZ(exitPoint),
+      exit_spread: exitPoint.spread_pct,
+      return_pp: exitPoint.spread_pct - entryPoint.spread_pct,
+      calendar_days: calDaysBetween(entryPoint.date, exitPoint.date),
+      exit_reason,
+    })
+
+    lastExitIdx = exitIdx
+    lastEntryZ = entryZ
+  }
+
+  return results.sort((a, b) => a.entry_date.localeCompare(b.entry_date))
+}
+
+/**
+ * Aggregate stats across all horizons using exit-based observations.
+ * Returns one ForwardReturnRow per horizon.
+ */
+export function computeForwardReturns(
+  series: SpreadPoint[],
+  currentZscore: number,
+  selectedWindow: WindowKey,
+  rollingMode: boolean,
+  rules: TradingRules,
+  fixedMean?: number,
+  fixedStd?: number,
+  horizons: number[] = [5, 20, 40, 60, 90]
+): ForwardReturnRow[] {
+  const labels: Record<number, string> = {
+    5: '5 Days', 20: '20 Days', 40: '40 Days', 60: '60 Days', 90: '90 Days',
+  }
+  const expectedDirection = currentZscore < 0 ? 1 : currentZscore > 0 ? -1 : 0
+
   return horizons.map((h) => {
-    const returns: number[] = []
-
-    for (let i = 0; i < series.length - 1; i++) {
-      const entryZ = getZ(series[i])
-      if (entryZ == null) continue
-      if (Math.abs(entryZ - currentZscore) > ZSCORE_BAND) continue
-      const targetDate = addDays(series[i].date, h)
-      const exitIdx = series.findIndex((p, j) => j > i && p.date >= targetDate)
-      if (exitIdx === -1) continue
-      returns.push(series[exitIdx].spread_pct - series[i].spread_pct)
+    const obs = getExitBasedObservations(
+      series, currentZscore, selectedWindow, h, rollingMode, rules, fixedMean, fixedStd
+    )
+    if (obs.length === 0) {
+      return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return: null, median_return: null, win_rate: null, observations: 0, avg_days: null }
     }
-
-    if (returns.length === 0) {
-      return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return: null, median_return: null, win_rate: null, observations: 0 }
-    }
-
+    const returns = obs.map((o) => o.return_pp)
     const sorted = [...returns].sort((a, b) => a - b)
     const avg_return = returns.reduce((a, b) => a + b, 0) / returns.length
     const median_return = sorted[Math.floor(sorted.length / 2)]
     const wins = expectedDirection !== 0 ? returns.filter((r) => r * expectedDirection > 0).length : 0
     const win_rate = expectedDirection !== 0 ? (wins / returns.length) * 100 : null
+    const avg_days = obs.reduce((a, o) => a + o.calendar_days, 0) / obs.length
 
-    return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return, median_return, win_rate, observations: returns.length }
+    return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return, median_return, win_rate, observations: obs.length, avg_days }
   })
 }
 
 /**
- * Returns all individual analog observations for a given horizon (calendar days).
- * Matches historical points where z-score is within ±0.25 of currentZscore.
- *
- * Rolling mode: uses each point's pre-computed rolling z-score.
- * Fixed mode: recomputes every point's z-score using the same fixed mean/std
- * as the current z-score, so the comparison is apples-to-apples.
+ * @deprecated Use getExitBasedObservations instead.
+ * Kept temporarily for any callsites not yet migrated.
  */
 export function getForwardReturnObservations(
   series: SpreadPoint[],
@@ -319,36 +424,7 @@ export function getForwardReturnObservations(
   fixedMean?: number,
   fixedStd?: number
 ): ForwardReturnObservation[] {
-  const ZSCORE_BAND = 0.25
-  const results: ForwardReturnObservation[] = []
-
-  const getZ = (point: SpreadPoint): number | null => {
-    if (rollingMode) return point.windows[selectedWindow]?.zscore ?? null
-    if (fixedMean == null || fixedStd == null || fixedStd === 0) return null
-    return (point.spread_pct - fixedMean) / fixedStd
-  }
-
-  for (let i = 0; i < series.length - 1; i++) {
-    const entryZ = getZ(series[i])
-    if (entryZ == null) continue
-    if (Math.abs(entryZ - currentZscore) > ZSCORE_BAND) continue
-    const targetDate = addDays(series[i].date, horizon)
-    const exitIdx = series.findIndex((p, j) => j > i && p.date >= targetDate)
-    if (exitIdx === -1) continue
-    const calendarDays = Math.round(
-      (new Date(series[exitIdx].date).getTime() - new Date(series[i].date).getTime()) / 86_400_000
-    )
-    results.push({
-      entry_date: series[i].date,
-      entry_zscore: entryZ,
-      entry_spread: series[i].spread_pct,
-      exit_date: series[exitIdx].date,
-      exit_zscore: getZ(series[exitIdx]),
-      exit_spread: series[exitIdx].spread_pct,
-      return_pp: series[exitIdx].spread_pct - series[i].spread_pct,
-      calendar_days: calendarDays,
-    })
-  }
-
-  return results.sort((a, b) => a.entry_date.localeCompare(b.entry_date))
+  return getExitBasedObservations(
+    series, currentZscore, selectedWindow, horizon, rollingMode, DEFAULT_RULES, fixedMean, fixedStd
+  )
 }

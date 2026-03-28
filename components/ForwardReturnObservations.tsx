@@ -1,15 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import type { SpreadPoint, WindowKey } from '@/types'
+import type { SpreadPoint, WindowKey, TradingRules } from '@/types'
 import { WINDOW_MONTHS } from '@/types'
-import { getForwardReturnObservations, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
+import { getExitBasedObservations, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
   selectedWindow: WindowKey
   liveSpreadPct?: number
   rollingMode: boolean
+  rules: TradingRules
 }
 
 const HORIZONS = [5, 20, 40, 60, 90]
@@ -33,7 +34,7 @@ function fmtReturn(n: number) {
   return `${n > 0 ? '+' : ''}${n.toFixed(2)}pp`
 }
 
-export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
+export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules }: Props) {
   const [selectedHorizon, setSelectedHorizon] = useState(20)
 
   const last = series[series.length - 1]
@@ -58,9 +59,9 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
   const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
 
   const observations = currentZscore != null
-    ? getForwardReturnObservations(
+    ? getExitBasedObservations(
         series, currentZscore, selectedWindow, selectedHorizon,
-        rollingMode, fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
+        rollingMode, rules, fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
       )
     : []
 
@@ -72,8 +73,9 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
             Analog Observations
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Historical instances where Z-score ({selectedWindow}) was within ±0.25 of current
+            Historical instances where Z-score ({selectedWindow}) was within ±{rules.entry_band} of current
             {currentZscore != null ? ` (Z: ${fmtZ(currentZscore)})` : ''}
+            {' '}· Exit at z ∈ [{rules.exit_zone_lo}, {rules.exit_zone_hi}] or time stop
           </p>
         </div>
         <div className="flex gap-1">
@@ -108,7 +110,8 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
               <th className="text-right pb-2">Exit Z</th>
               <th className="text-right pb-2">Exit Spread</th>
               <th className="text-right pb-2">Return</th>
-              <th className="text-right pb-2">Days Held</th>
+              <th className="text-right pb-2">Days</th>
+              <th className="text-right pb-2">Exit Reason</th>
             </tr>
           </thead>
           <tbody>
@@ -124,6 +127,11 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
                   {fmtReturn(obs.return_pp)}
                 </td>
                 <td className="py-2 text-right text-slate-400">{obs.calendar_days}</td>
+                <td className="py-2 text-right">
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${obs.exit_reason === 'target' ? 'bg-green-900/40 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
+                    {obs.exit_reason === 'target' ? 'target' : 'time stop'}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

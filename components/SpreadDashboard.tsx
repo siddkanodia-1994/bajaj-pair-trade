@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import type { SpreadPoint, StakeHistoryRow, WindowKey, LiveSpreadData } from '@/types'
+import type { SpreadPoint, StakeHistoryRow, WindowKey, LiveSpreadData, TradingRules } from '@/types'
 import { recomputeSpreadSeries } from '@/lib/spread-calculator'
 import LiveSpreadBanner from './LiveSpreadBanner'
 import SpreadChart from './SpreadChart'
@@ -11,22 +11,25 @@ import ForwardReturnsTable from './ForwardReturnsTable'
 import ForwardReturnObservations from './ForwardReturnObservations'
 import DailySpreadTable from './DailySpreadTable'
 import SharesTab from './SharesTab'
+import RulesTab from './RulesTab'
 
-type Tab = 'dashboard' | 'daily-spread' | 'shares'
+type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules'
 
 interface Props {
   spreadSeries: SpreadPoint[]
   stakes: StakeHistoryRow[]
   initialLiveData: LiveSpreadData | null
+  rules: TradingRules
 }
 
-export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData }: Props) {
+export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData, rules: initialRules }: Props) {
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('1Y')
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [rollingMode, setRollingMode] = useState(true)
   const [lightMode, setLightMode] = useState(false)
   const [currentStakes, setCurrentStakes] = useState<StakeHistoryRow[]>(stakes)
+  const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
 
   const activeSpreadSeries = useMemo(
     () => recomputeSpreadSeries(spreadSeries, currentStakes),
@@ -50,6 +53,13 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
   }
 
   const liveSpreadPct = liveData?.spread_pct
+
+  const TAB_STYLE = (tab: Tab) =>
+    `px-4 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+      activeTab === tab
+        ? 'border-blue-500 text-white bg-slate-900'
+        : 'border-transparent text-slate-500 hover:text-slate-300'
+    }`
 
   if (spreadSeries.length === 0) {
     return (
@@ -109,35 +119,17 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
 
         {/* Tab navigation */}
         <div className="max-w-screen-2xl mx-auto mt-3 flex gap-1">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-              activeTab === 'dashboard'
-                ? 'border-blue-500 text-white bg-slate-900'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
+          <button onClick={() => setActiveTab('dashboard')} className={TAB_STYLE('dashboard')}>
             Dashboard
           </button>
-          <button
-            onClick={() => setActiveTab('daily-spread')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-              activeTab === 'daily-spread'
-                ? 'border-blue-500 text-white bg-slate-900'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
+          <button onClick={() => setActiveTab('daily-spread')} className={TAB_STYLE('daily-spread')}>
             Daily Spread
           </button>
-          <button
-            onClick={() => setActiveTab('shares')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-              activeTab === 'shares'
-                ? 'border-blue-500 text-white bg-slate-900'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
+          <button onClick={() => setActiveTab('shares')} className={TAB_STYLE('shares')}>
             Shares
+          </button>
+          <button onClick={() => setActiveTab('rules')} className={TAB_STYLE('rules')}>
+            Rules
           </button>
         </div>
       </header>
@@ -182,6 +174,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
+              rules={activeRules}
             />
 
             {/* Forward Returns */}
@@ -190,6 +183,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
+              rules={activeRules}
             />
 
             {/* Analog Observations */}
@@ -198,9 +192,8 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
+              rules={activeRules}
             />
-
-
           </>
         )}
 
@@ -225,6 +218,18 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData 
         {activeTab === 'shares' && (
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <SharesTab />
+          </div>
+        )}
+
+        {activeTab === 'rules' && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <div className="mb-5">
+              <h2 className="text-base font-semibold text-white">Trading Rules</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Click any value to edit. Changes save instantly and propagate to all signals and observations.
+              </p>
+            </div>
+            <RulesTab rules={activeRules} onRulesChange={setActiveRules} />
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import type { EodPriceRow, ShareHistoryRow } from '@/types'
+import type { EodPriceRow, ShareHistoryRow, TradingRules } from '@/types'
+import { DEFAULT_RULES } from '@/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -13,6 +14,22 @@ export function createServerClient() {
   return createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+// ---------- Trading rules ----------
+
+export async function fetchRules(): Promise<TradingRules> {
+  const { data } = await supabase
+    .from('trading_rules')
+    .select('rule_key, rule_value')
+  if (!data || data.length === 0) return { ...DEFAULT_RULES }
+  const rules = { ...DEFAULT_RULES }
+  for (const row of data) {
+    if (row.rule_key in rules) {
+      (rules as Record<string, number>)[row.rule_key] = Number(row.rule_value)
+    }
+  }
+  return rules
 }
 
 // ---------- Share history ----------

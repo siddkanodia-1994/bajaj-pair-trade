@@ -1,4 +1,5 @@
-import type { Signal, SignalType } from '@/types'
+import type { Signal, SignalType, TradingRules } from '@/types'
+import { DEFAULT_RULES } from '@/types'
 
 const SIGNALS: Record<SignalType, Omit<Signal, 'zscore'>> = {
   STRONG_LONG: {
@@ -38,17 +39,17 @@ const SIGNALS: Record<SignalType, Omit<Signal, 'zscore'>> = {
   },
 }
 
-export function generateSignal(zscore: number | null): Signal {
+export function generateSignal(zscore: number | null, rules: TradingRules = DEFAULT_RULES): Signal {
   let type: SignalType
   if (zscore === null) {
     type = 'HOLD'
-  } else if (zscore <= -1.5) {
+  } else if (zscore <= rules.strong_long_threshold) {
     type = 'STRONG_LONG'
-  } else if (zscore <= -1.0) {
+  } else if (zscore <= rules.long_threshold) {
     type = 'LONG'
-  } else if (zscore >= 1.5) {
+  } else if (zscore >= rules.strong_short_threshold) {
     type = 'STRONG_SHORT'
-  } else if (zscore >= 1.0) {
+  } else if (zscore >= rules.short_threshold) {
     type = 'SHORT'
   } else {
     type = 'HOLD'

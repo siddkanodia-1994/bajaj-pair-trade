@@ -99,6 +99,7 @@ export interface ForwardReturnRow {
   median_return: number | null
   win_rate: number | null
   observations: number
+  avg_days: number | null
 }
 
 export interface ForwardReturnObservation {
@@ -110,6 +111,41 @@ export interface ForwardReturnObservation {
   exit_spread: number
   return_pp: number
   calendar_days: number
+  exit_reason: 'target' | 'time_stop'
+}
+
+// ── Trading rules (stored in DB, editable in Rules tab) ──────────────────────
+
+export interface TradingRules {
+  strong_long_threshold: number   // e.g. -1.5
+  long_threshold: number          // e.g. -1.0
+  short_threshold: number         // e.g.  1.0
+  strong_short_threshold: number  // e.g.  1.5
+  entry_band: number              // ±z-score band for analog matching, e.g. 0.25
+  exit_zone_lo: number            // long exit zone lower bound, e.g. -0.5
+  exit_zone_hi: number            // long exit zone upper bound, e.g.  0.0 (short mirrored)
+  add_to_trade_gap: number        // SDs further to trigger 2nd observation, e.g. 0.5
+  time_stop_5d: number
+  time_stop_20d: number
+  time_stop_40d: number
+  time_stop_60d: number
+  time_stop_90d: number
+}
+
+export const DEFAULT_RULES: TradingRules = {
+  strong_long_threshold: -1.5,
+  long_threshold: -1.0,
+  short_threshold: 1.0,
+  strong_short_threshold: 1.5,
+  entry_band: 0.25,
+  exit_zone_lo: -0.5,
+  exit_zone_hi: 0.0,
+  add_to_trade_gap: 0.5,
+  time_stop_5d: 5,
+  time_stop_20d: 20,
+  time_stop_40d: 40,
+  time_stop_60d: 60,
+  time_stop_90d: 90,
 }
 
 export interface ShareHistoryRow {

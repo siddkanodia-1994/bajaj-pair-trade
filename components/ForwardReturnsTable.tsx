@@ -1,6 +1,6 @@
 'use client'
 
-import type { SpreadPoint, WindowKey } from '@/types'
+import type { SpreadPoint, WindowKey, TradingRules } from '@/types'
 import { WINDOW_MONTHS } from '@/types'
 import { computeForwardReturns, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
@@ -9,6 +9,7 @@ interface Props {
   selectedWindow: WindowKey
   liveSpreadPct?: number
   rollingMode: boolean
+  rules: TradingRules
 }
 
 function fmt(n: number | null, d = 2) {
@@ -46,7 +47,7 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
@@ -72,7 +73,7 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
 
   const rows = currentZscore != null
     ? computeForwardReturns(
-        series, currentZscore, selectedWindow, rollingMode,
+        series, currentZscore, selectedWindow, rollingMode, rules,
         fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined
       )
     : []
@@ -81,7 +82,7 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
     <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
-          Forward Returns at Similar Z-Scores (±0.25 Z-score band)
+          Forward Returns at Similar Z-Scores (±{rules.entry_band} Z-score band)
         </h2>
         <div className="text-xs text-slate-500">
           Current Z ({selectedWindow}): {fmtZ(currentZscore)}
@@ -95,6 +96,7 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
             <th className="text-right pb-2">Avg Δ Spread</th>
             <th className="text-right pb-2">Median Δ Spread</th>
             <th className="text-right pb-2">Win Rate</th>
+            <th className="text-right pb-2">Avg Days</th>
             <th className="text-right pb-2">Observations</th>
           </tr>
         </thead>
@@ -111,6 +113,9 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
               <td className={`text-right py-2.5 font-medium ${colorForWinRate(row.win_rate)}`}>
                 {pctFmt(row.win_rate)}
               </td>
+              <td className="text-right py-2.5 text-slate-400">
+                {row.avg_days != null ? row.avg_days.toFixed(0) : '—'}
+              </td>
               <td className="text-right py-2.5 text-slate-400">{row.observations}</td>
             </tr>
           ))}
@@ -118,8 +123,8 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
       </table>
 
       <div className="mt-3 text-xs text-slate-600">
-        "Win" = spread moves in the expected reversion direction.
-        Δ Spread in percentage points (pp). Positive = spread widened.
+        "Win" = spread moves in the expected reversion direction. Exit at z-score in exit zone [{rules.exit_zone_lo}, {rules.exit_zone_hi}] or time stop.
+        Δ Spread in percentage points (pp).
       </div>
     </div>
   )

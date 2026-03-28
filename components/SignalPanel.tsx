@@ -1,6 +1,6 @@
 'use client'
 
-import type { SpreadPoint, WindowKey, ForwardReturnRow } from '@/types'
+import type { SpreadPoint, WindowKey, ForwardReturnRow, TradingRules } from '@/types'
 import { WINDOW_MONTHS } from '@/types'
 import { generateSignal, signalBorderColor, signalBgColor } from '@/lib/signal-generator'
 import { computeForwardReturns, subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
@@ -10,6 +10,7 @@ interface Props {
   selectedWindow: WindowKey
   liveSpreadPct?: number
   rollingMode: boolean
+  rules: TradingRules
 }
 
 function fmt(n: number | null, d = 2) {
@@ -18,21 +19,16 @@ function fmt(n: number | null, d = 2) {
   return n > 0 ? `+${s}` : s
 }
 
-function fmtPct(n: number | null) {
-  if (n == null) return '—'
-  return `${n.toFixed(1)}%`
-}
-
 interface SignalCardProps {
   title: string
   horizon: number
   fwdReturn: ForwardReturnRow | undefined
   zscore: number | null
-  window: WindowKey
+  rules: TradingRules
 }
 
-function SignalCard({ title, horizon, fwdReturn, zscore, window }: SignalCardProps) {
-  const signal = generateSignal(zscore)
+function SignalCard({ title, horizon, fwdReturn, zscore, rules }: SignalCardProps) {
+  const signal = generateSignal(zscore, rules)
   const borderClass = signalBorderColor(signal.type)
   const bgClass = signalBgColor(signal.type)
 
@@ -53,7 +49,7 @@ function SignalCard({ title, horizon, fwdReturn, zscore, window }: SignalCardPro
       </div>
 
       {fwdReturn && fwdReturn.observations > 0 ? (
-        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-700/50">
+        <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-700/50">
           <div className="text-center">
             <div className="text-xs text-slate-500">{fwdReturn.horizon_label} Avg</div>
             <div className={`text-sm font-semibold mt-0.5 ${(fwdReturn.avg_return ?? 0) * (zscore ?? 0) < 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -64,6 +60,12 @@ function SignalCard({ title, horizon, fwdReturn, zscore, window }: SignalCardPro
             <div className="text-xs text-slate-500">Win Rate</div>
             <div className={`text-sm font-semibold mt-0.5 ${(fwdReturn.win_rate ?? 0) > 55 ? 'text-green-400' : (fwdReturn.win_rate ?? 0) > 45 ? 'text-slate-300' : 'text-red-400'}`}>
               {fwdReturn.win_rate != null ? `${fwdReturn.win_rate.toFixed(0)}%` : '—'}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-slate-500">Avg Days</div>
+            <div className="text-sm font-semibold mt-0.5 text-slate-300">
+              {fwdReturn.avg_days != null ? fwdReturn.avg_days.toFixed(0) : '—'}
             </div>
           </div>
           <div className="text-center">
@@ -80,7 +82,7 @@ function SignalCard({ title, horizon, fwdReturn, zscore, window }: SignalCardPro
   )
 }
 
-export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rollingMode }: Props) {
+export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rollingMode, rules }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
@@ -103,7 +105,7 @@ export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rol
   const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
 
   const forwardReturns = computeForwardReturns(
-    series, zscore ?? 0, selectedWindow, rollingMode,
+    series, zscore ?? 0, selectedWindow, rollingMode, rules,
     fixedStats?.mean ?? undefined, fixedStats?.std ?? undefined,
     [5, 20, 60, 90]
   )
@@ -117,14 +119,14 @@ export default function SignalPanel({ series, selectedWindow, liveSpreadPct, rol
         horizon={5}
         fwdReturn={fwd5}
         zscore={zscore}
-        window={selectedWindow}
+        rules={rules}
       />
       <SignalCard
         title="Medium-Term (Up to 90 Days)"
         horizon={90}
         fwdReturn={fwd90}
         zscore={zscore}
-        window={selectedWindow}
+        rules={rules}
       />
     </div>
   )
