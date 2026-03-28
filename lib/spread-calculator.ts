@@ -335,16 +335,17 @@ export function getExitBasedObservations(
   for (let i = 0; i < series.length - 1; i++) {
     const entryZ = getZ(series[i])
     if (entryZ == null) continue
-    if (Math.abs(entryZ - currentZscore) > rules.entry_band) continue
 
-    // De-duplication: skip if prior trade still open (exit is ahead of i)
     if (lastExitIdx >= i) {
-      // Allow add-to-trade: accept if z moved add_to_trade_gap further in direction
+      // Trade still open — add-to-trade path: skip entry band, only check gap
       if (lastEntryZ == null) continue
       const movedFurther = direction === 'long'
         ? entryZ <= lastEntryZ - rules.add_to_trade_gap
         : entryZ >= lastEntryZ + rules.add_to_trade_gap
       if (!movedFurther) continue
+    } else {
+      // Fresh entry — must be within entry band of current z-score
+      if (Math.abs(entryZ - currentZscore) > rules.entry_band) continue
     }
 
     const exitResult = findExit(series, getZ, i, timeStop, direction, rules)
