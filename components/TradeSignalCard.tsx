@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { TradeSignal, TradeTranche } from '@/types'
 import { getBlendedEntry, getDaysHeld } from '@/lib/trade-signals'
 
-type Overrides = { spread: number; z: number | null; date: string }
+type Overrides = { spread: number; z: number | null; date: string; sizeLabel?: string }
 
 interface Props {
   signal: TradeSignal
@@ -37,6 +37,7 @@ export default function TradeSignalCard({
   const [manualSpread, setManualSpread] = useState('')
   const [manualZ, setManualZ] = useState('')
   const [manualDate, setManualDate] = useState('')
+  const [manualSize, setManualSize] = useState('50%')
 
   const todayISO = new Date().toISOString().split('T')[0]
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -53,7 +54,7 @@ export default function TradeSignalCard({
     const z = manualZ !== '' ? parseFloat(manualZ) : null
     const date = manualDate || todayISO
     if (isNaN(spread)) return
-    const ov = { spread, z: isNaN(z as number) ? null : z, date }
+    const ov = { spread, z: isNaN(z as number) ? null : z, date, sizeLabel: manualSize }
     openTranches.length === 0 ? onEnter(ov) : onAdd(ov)
     setManualOpen(false)
   }
@@ -215,6 +216,18 @@ export default function TradeSignalCard({
                   />
                 </label>
                 <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-500">Size</span>
+                  <select
+                    value={manualSize}
+                    onChange={(e) => setManualSize(e.target.value)}
+                    className="text-sm bg-slate-700 border border-slate-500 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+                  >
+                    {[10,20,30,40,50,60,70,80,90,100].map((p) => (
+                      <option key={p} value={`${p}%`}>{p}%</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1">
                   <span className="text-xs text-slate-500">Window</span>
                   <div className="text-sm bg-slate-800 border border-slate-700 text-slate-400 rounded px-2 py-1.5 w-20">
                     {selectedWindow}
@@ -228,8 +241,8 @@ export default function TradeSignalCard({
                   className="px-4 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Saving…' : openTranches.length === 0
-                    ? 'Confirm Entry — Tranche 1 (50%)'
-                    : `Confirm Add — Tranche ${openTranches.length + 1} (${['50%','30%','20%'][openTranches.length] ?? '20%'})`}
+                    ? `Confirm Entry — Tranche 1 (${manualSize})`
+                    : `Confirm Add — Tranche ${openTranches.length + 1} (${manualSize})`}
                 </button>
                 <button
                   onClick={() => setManualOpen(false)}

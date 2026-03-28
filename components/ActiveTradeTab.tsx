@@ -54,7 +54,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  async function handleEnter(ov?: { spread: number; z: number | null; date: string }) {
+  async function handleEnter(ov?: { spread: number; z: number | null; date: string; sizeLabel?: string }) {
     setSaving(true)
     setError(null)
     const today = ov?.date ?? new Date().toISOString().split('T')[0]
@@ -73,7 +73,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
           entry_date: today,
           entry_spread: spread,
           entry_z: z,
-          size_label: '50%',
+          size_label: ov?.sizeLabel ?? '50%',
         }),
       })
       const data = await res.json()
@@ -86,7 +86,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     }
   }
 
-  async function handleAdd(ov?: { spread: number; z: number | null; date: string }) {
+  async function handleAdd(ov?: { spread: number; z: number | null; date: string; sizeLabel?: string }) {
     setSaving(true)
     setError(null)
     if (openTranches.length === 0 || openTranches.length >= 3) { setSaving(false); return }
@@ -95,7 +95,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const z = ov !== undefined ? ov.z : currentZscore
     const oldest = [...openTranches].sort((a, b) => a.entry_date.localeCompare(b.entry_date))[0]
     const nextTranche = openTranches.length + 1
-    const sizeLabel = TRANCHE_SIZES[nextTranche - 1] ?? '20%'
+    const sizeLabel = ov?.sizeLabel ?? TRANCHE_SIZES[nextTranche - 1] ?? '20%'
     try {
       const res = await fetch('/api/trades', {
         method: 'POST',
