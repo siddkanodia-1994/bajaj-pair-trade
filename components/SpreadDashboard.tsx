@@ -6,7 +6,6 @@ import { recomputeSpreadSeries } from '@/lib/spread-calculator'
 import LiveSpreadBanner from './LiveSpreadBanner'
 import SpreadChart from './SpreadChart'
 import StatisticsPanel from './StatisticsPanel'
-import SignalPanel from './SignalPanel'
 import ForwardReturnsTable from './ForwardReturnsTable'
 import ForwardReturnObservations from './ForwardReturnObservations'
 import DailySpreadTable from './DailySpreadTable'
@@ -178,15 +177,6 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                 />
               </div>
             </div>
-
-            {/* Signal Cards */}
-            <SignalPanel
-              series={activeSpreadSeries}
-              selectedWindow={selectedWindow}
-              liveSpreadPct={liveSpreadPct}
-              rollingMode={rollingMode}
-              rules={activeRules}
-            />
 
             {/* Forward Returns */}
             <ForwardReturnsTable
