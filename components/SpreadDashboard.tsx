@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData, rules: initialRules }: Props) {
-  const [selectedWindow, setSelectedWindow] = useState<WindowKey>('1Y')
+  const [selectedWindow, setSelectedWindow] = useState<WindowKey>('2Y')
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [rollingMode, setRollingMode] = useState(false)

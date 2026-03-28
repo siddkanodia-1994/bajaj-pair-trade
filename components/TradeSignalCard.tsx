@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { TradeSignal, TradeTranche } from '@/types'
 import { getBlendedEntry, getDaysHeld } from '@/lib/trade-signals'
 
@@ -30,6 +31,7 @@ export default function TradeSignalCard({
   signal, currentZ, liveSpreadPct, selectedWindow,
   openTranches, onEnter, onAdd, onExitAll, saving,
 }: Props) {
+  const [manualOpen, setManualOpen] = useState(false)
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
   const spreadStr = liveSpreadPct != null ? `${liveSpreadPct.toFixed(2)}%` : '—'
   const zStr = currentZ != null ? fmt(currentZ) : '—'
@@ -136,6 +138,52 @@ export default function TradeSignalCard({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Manual override — always visible when a new tranche can still be added */}
+      {openTranches.length < 3 && !isEnter && !isAdd && (
+        <div className="mt-4 pt-3 border-t border-slate-700/30">
+          <button
+            onClick={() => setManualOpen((o) => !o)}
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+          >
+            <span>{manualOpen ? '▾' : '▸'}</span>
+            {openTranches.length === 0
+              ? 'Enter trade manually'
+              : `Add Tranche ${openTranches.length + 1} manually`}
+          </button>
+
+          {manualOpen && (
+            <div className="mt-3 rounded-lg border border-slate-600 bg-slate-900/60 p-4">
+              <div className="text-xs text-slate-500 mb-3">
+                Override — stamp entry at current live data regardless of signal:
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm mb-4">
+                <span className="text-slate-300">Spread: <span className="font-medium text-white">{spreadStr}</span></span>
+                <span className="text-slate-300">Z-Score: <span className="font-medium text-white">{zStr}</span></span>
+                <span className="text-slate-300">Date: <span className="font-medium text-white">{today}</span></span>
+                <span className="text-slate-300">Window: <span className="font-medium text-white">{selectedWindow}</span></span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { openTranches.length === 0 ? onEnter() : onAdd(); setManualOpen(false) }}
+                  disabled={saving}
+                  className="px-4 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Saving…' : openTranches.length === 0
+                    ? 'Confirm Entry — Tranche 1 (50%)'
+                    : `Confirm Add — Tranche ${openTranches.length + 1} (${['50%','30%','20%'][openTranches.length] ?? '20%'})`}
+                </button>
+                <button
+                  onClick={() => setManualOpen(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
