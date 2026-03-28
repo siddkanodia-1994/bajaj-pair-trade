@@ -32,6 +32,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
   const [obsFilterYear, setObsFilterYear] = useState<number | null>(2022)
   const [obsFilterMonth, setObsFilterMonth] = useState<number>(0) // Jan
+  const [zOverride, setZOverride] = useState<number | null>(null)
 
   const obsStartDate = obsFilterYear != null
     ? `${obsFilterYear}-${String(obsFilterMonth + 1).padStart(2, '0')}-01`
@@ -191,6 +192,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               rollingMode={rollingMode}
               rules={activeRules}
               obsStartDate={obsStartDate}
+              zOverride={zOverride}
             />
 
             {/* Analog Observations */}
@@ -203,6 +205,8 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               filterYear={obsFilterYear}
               filterMonth={obsFilterMonth}
               onFilterChange={(year, month) => { setObsFilterYear(year); setObsFilterMonth(month) }}
+              zOverride={zOverride}
+              onZOverrideChange={setZOverride}
             />
           </>
         )}

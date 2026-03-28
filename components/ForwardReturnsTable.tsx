@@ -11,6 +11,7 @@ interface Props {
   rollingMode: boolean
   rules: TradingRules
   obsStartDate?: string | null
+  zOverride?: number | null
 }
 
 function fmt(n: number | null, d = 2) {
@@ -48,7 +49,7 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules, obsStartDate }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules, obsStartDate, zOverride }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
@@ -60,7 +61,7 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
     ? series.map((p) => p.spread_pct)
     : series.filter((p) => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
 
-  const currentZscore = (() => {
+  const computedZscore = (() => {
     if (rollingMode) {
       const ws = last.windows[selectedWindow]
       return ws?.mean != null && ws?.std != null && ws.std > 0
@@ -69,6 +70,7 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
     }
     return computeFixedWindowStats(visibleValues, spread).zscore
   })()
+  const currentZscore = (zOverride != null) ? zOverride : computedZscore
 
   const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
 
