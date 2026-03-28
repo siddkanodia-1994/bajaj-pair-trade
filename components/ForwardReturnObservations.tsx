@@ -212,8 +212,12 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
                 </td>
                 <td className="py-2 text-right text-slate-400">{obs.calendar_days}</td>
                 <td className="py-2 text-right">
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${obs.exit_reason === 'target' ? 'bg-green-900/40 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
-                    {obs.exit_reason === 'target' ? 'target' : 'time stop'}
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    obs.exit_reason === 'target' ? 'bg-green-900/40 text-green-400' :
+                    obs.exit_reason === 'open'   ? 'bg-amber-900/40 text-amber-400' :
+                    'bg-slate-700 text-slate-400'
+                  }`}>
+                    {obs.exit_reason === 'target' ? 'target' : obs.exit_reason === 'open' ? 'open' : 'time stop'}
                   </span>
                 </td>
               </tr>

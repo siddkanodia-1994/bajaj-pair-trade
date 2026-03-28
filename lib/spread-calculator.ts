@@ -289,7 +289,7 @@ function findExit(
   timeStop: number,
   direction: 'long' | 'short',
   rules: TradingRules
-): { exitIdx: number; exit_reason: 'target' | 'time_stop' } | null {
+): { exitIdx: number; exit_reason: 'target' | 'time_stop' | 'open' } | null {
   const entryDate = series[entryIdx].date
   for (let j = entryIdx + 1; j < series.length; j++) {
     const calDays = calDaysBetween(entryDate, series[j].date)
@@ -301,7 +301,12 @@ function findExit(
       return { exitIdx: j, exit_reason: 'time_stop' }
     }
   }
-  return null // open trade
+  // Trade still open — use latest available point as provisional exit
+  const lastIdx = series.length - 1
+  if (lastIdx > entryIdx) {
+    return { exitIdx: lastIdx, exit_reason: 'open' }
+  }
+  return null
 }
 
 /**
@@ -394,9 +399,11 @@ export function computeForwardReturns(
   const expectedDirection = currentZscore < 0 ? 1 : currentZscore > 0 ? -1 : 0
 
   return horizons.map((h) => {
-    const obs = getExitBasedObservations(
+    const allObs = getExitBasedObservations(
       series, currentZscore, selectedWindow, h, rollingMode, rules, fixedMean, fixedStd
     )
+    // Exclude open trades from aggregate stats — they haven't resolved
+    const obs = allObs.filter((o) => o.exit_reason !== 'open')
     if (obs.length === 0) {
       return { horizon: h, horizon_label: labels[h] ?? `${h}d`, avg_return: null, median_return: null, win_rate: null, observations: 0, avg_days: null }
     }

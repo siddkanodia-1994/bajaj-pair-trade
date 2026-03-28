@@ -111,7 +111,7 @@ export interface ForwardReturnObservation {
   exit_spread: number
   return_pp: number
   calendar_days: number
-  exit_reason: 'target' | 'time_stop'
+  exit_reason: 'target' | 'time_stop' | 'open'
 }
 
 // ── Trading rules (stored in DB, editable in Rules tab) ──────────────────────
