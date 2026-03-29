@@ -19,7 +19,7 @@ interface Props {
   onOwnerUnlock: () => void
 }
 
-const TRANCHE_SIZES = ['50%', '30%', '20%']
+const TRANCHE_SIZES = ['50%', '30%', '20%', '10%', '10%']
 
 export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, rules, isOwner, onOwnerUnlock }: Props) {
   // ── My Analysis state (visitor's personal trades) ─────────────────────────
@@ -164,7 +164,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
   async function handleAdd(ov?: { spread: number; z: number | null; date: string; sizeLabel?: string }) {
     setSaving(true)
     setError(null)
-    if (myOpen.length === 0 || myOpen.length >= 3) { setSaving(false); return }
+    if (myOpen.length === 0 || myOpen.length >= 5) { setSaving(false); return }
     const today = ov?.date ?? new Date().toISOString().split('T')[0]
     const spread = ov?.spread ?? liveSpreadPct ?? series[series.length - 1]?.spread_pct ?? 0
     const z = ov !== undefined ? ov.z : currentZscore

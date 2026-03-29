@@ -1,7 +1,7 @@
 import type { TradeTranche, TradeSignal, TradeSignalAction, TradingRules } from '@/types'
 
 const TIME_STOP_DAYS = 60
-const TRANCHE_SIZES = ['50%', '30%', '20%']
+const TRANCHE_SIZES = ['50%', '30%', '20%', '10%', '10%']
 
 function calDaysBetween(a: string, b: string): number {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000)
@@ -126,7 +126,7 @@ export function evaluateTradeSignal(
 
     // ── Add-to-trade check ────────────────────────────────────────────────────
     const nextTranche = openTranches.length + 1
-    if (nextTranche <= 3 && currentZ != null) {
+    if (nextTranche <= 5 && currentZ != null) {
       const latestEntry = [...openTranches].sort((a, b) => b.entry_date.localeCompare(a.entry_date))[0]
       const lastZ = latestEntry.entry_z
       const direction = latestEntry.direction
@@ -135,11 +135,14 @@ export function evaluateTradeSignal(
         : lastZ != null && currentZ >= lastZ + rules.add_to_trade_gap
 
       if (movedFurther) {
-        const sizeLabel = TRANCHE_SIZES[nextTranche - 1] ?? '20%'
+        const sizeLabel = TRANCHE_SIZES[nextTranche - 1] ?? '10%'
+        const isExtended = nextTranche > 3
         return makeSignal(
-          'ADD', 'medium',
-          `ADD — Tranche ${nextTranche} (${sizeLabel})`,
-          `Z has moved ${rules.add_to_trade_gap} SD further. Add ${sizeLabel} position at current level.`
+          'ADD', isExtended ? 'low' : 'medium',
+          `ADD — Tranche ${nextTranche} (${sizeLabel})${isExtended ? ' · Extended' : ''}`,
+          isExtended
+            ? `Z has moved ${rules.add_to_trade_gap} SD further. Extended tranche ${nextTranche} — outside the recommended 3-tranche framework.`
+            : `Z has moved ${rules.add_to_trade_gap} SD further. Add ${sizeLabel} position at current level.`
         )
       }
     }

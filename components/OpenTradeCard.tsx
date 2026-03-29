@@ -71,7 +71,12 @@ export default function OpenTradeCard({
           <div className="text-lg font-bold text-white">
             {direction === 'long' ? 'Long BAJAJFINSV / Short BAJFINANCE' : 'Short BAJAJFINSV / Long BAJFINANCE'}
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">Window: {windowKey} · {openTranches.length} tranche{openTranches.length !== 1 ? 's' : ''} open</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            Window: {windowKey} · {openTranches.length} tranche{openTranches.length !== 1 ? 's' : ''} open
+            {openTranches.length > 3 && (
+              <span className="ml-1.5 text-amber-400/80">(+{openTranches.length - 3} extended)</span>
+            )}
+          </div>
         </div>
         <div className="text-right">
           <div className="text-xs text-slate-500">Days Held</div>
@@ -138,6 +143,15 @@ export default function OpenTradeCard({
                   <span className="text-xs font-bold text-slate-300 bg-slate-700 px-1.5 py-0.5 rounded">
                     #{t.tranche_num}
                   </span>
+                  {t.tranche_num <= 3 ? (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-700/40">
+                      Rec
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-700/40">
+                      Ext
+                    </span>
+                  )}
                   <span className="text-xs text-blue-300 font-medium">{t.size_label}</span>
                   <span className="text-xs text-slate-400">{fmtDate(t.entry_date)}</span>
                   <span className="text-xs text-slate-300">Spread: <span className="font-medium">{t.entry_spread.toFixed(2)}%</span></span>

@@ -68,7 +68,7 @@ export default function TradeSignalCard({
 
   // For ADD signal, show the next tranche info
   const nextTrancheNum = openTranches.length + 1
-  const trancheSizes = ['50%', '30%', '20%']
+  const trancheSizes = ['50%', '30%', '20%', '10%', '10%']
   const nextSize = trancheSizes[nextTrancheNum - 1] ?? '20%'
 
   // Days held info for exit signals
@@ -168,7 +168,7 @@ export default function TradeSignalCard({
       )}
 
       {/* Manual override — always visible when a new tranche can still be added */}
-      {!readOnly && openTranches.length < 3 && !isEnter && !isAdd && (
+      {!readOnly && openTranches.length < 5 && !isEnter && !isAdd && (
         <div className="mt-4 pt-3 border-t border-slate-700/30">
           <button
             onClick={() => manualOpen ? setManualOpen(false) : openManual()}
