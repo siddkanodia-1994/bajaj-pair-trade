@@ -289,13 +289,22 @@ function findExit(
   timeStop: number,
   direction: 'long' | 'short',
   rules: TradingRules
-): { exitIdx: number; exit_reason: 'target' | 'time_stop' | 'open' } | null {
+): { exitIdx: number; exit_reason: 'target' | 'time_stop' | 'hard_stop' | 'open' } | null {
   const entryDate = series[entryIdx].date
   for (let j = entryIdx + 1; j < series.length; j++) {
     const calDays = calDaysBetween(entryDate, series[j].date)
     const z = getZ(series[j])
-    if (z != null && inExitZone(z, direction, rules)) {
-      return { exitIdx: j, exit_reason: 'target' }
+    if (z != null) {
+      if (inExitZone(z, direction, rules)) {
+        return { exitIdx: j, exit_reason: 'target' }
+      }
+      // Hard stop: Z moved too far against the position
+      const isHardStop = direction === 'long'
+        ? z <= -rules.hard_stop_z
+        : z >= rules.hard_stop_z
+      if (isHardStop) {
+        return { exitIdx: j, exit_reason: 'hard_stop' }
+      }
     }
     if (calDays >= timeStop) {
       return { exitIdx: j, exit_reason: 'time_stop' }

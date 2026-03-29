@@ -1,6 +1,5 @@
 import type { TradeTranche, TradeSignal, TradeSignalAction, TradingRules } from '@/types'
 
-const HARD_STOP_Z = -2.8
 const TIME_STOP_DAYS = 60
 const TRANCHE_SIZES = ['50%', '30%', '20%']
 
@@ -105,11 +104,12 @@ export function evaluateTradeSignal(
           `Z-score (${currentZ.toFixed(2)}) has entered the exit zone [${rules.exit_zone_lo}, ${rules.exit_zone_hi}]. Close position.`
         )
       }
-      if (currentZ <= HARD_STOP_Z) {
+      const hardStopHit = currentZ <= -rules.hard_stop_z || currentZ >= rules.hard_stop_z
+      if (hardStopHit) {
         return makeSignal(
           'EXIT_HARD_STOP', 'critical',
           'EXIT — Hard Stop',
-          `Z-score (${currentZ.toFixed(2)}) hit the hard stop at ${HARD_STOP_Z}. Possible structural break — exit immediately.`
+          `Z-score (${currentZ.toFixed(2)}) hit the hard stop at ±${rules.hard_stop_z}. Possible structural break — exit immediately.`
         )
       }
     }
@@ -120,7 +120,7 @@ export function evaluateTradeSignal(
       return makeSignal(
         'EXIT_TIME', 'high',
         'EXIT — Time Stop',
-        `${daysHeld} days held — 60-day time stop reached. Close position regardless of Z-score.`
+        `${daysHeld} days held — time stop reached. Close position regardless of Z-score.`
       )
     }
 

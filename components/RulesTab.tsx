@@ -234,6 +234,17 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
               A 2nd observation is accepted only if z moves {rules.add_to_trade_gap} SD further than the first entry while still in trade.
             </div>
           </div>
+
+          <div className="space-y-3">
+            <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Hard Stop</div>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-slate-500 w-32">|Z| threshold</div>
+              <RuleField value={rules.hard_stop_z} ruleKey="hard_stop_z" onSave={handleSave} step={0.1} min={1.5} max={5} />
+            </div>
+            <div className="text-xs text-slate-600 mt-1">
+              Exit immediately if Z ≤ −{rules.hard_stop_z} (long) or Z ≥ +{rules.hard_stop_z} (short). Applies to Active Trade and Analog Observations.
+            </div>
+          </div>
         </div>
       </Section>
 

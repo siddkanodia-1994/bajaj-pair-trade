@@ -111,7 +111,7 @@ export interface ForwardReturnObservation {
   exit_spread: number
   return_pp: number
   calendar_days: number
-  exit_reason: 'target' | 'time_stop' | 'open'
+  exit_reason: 'target' | 'time_stop' | 'hard_stop' | 'open'
 }
 
 // ── Trading rules (stored in DB, editable in Rules tab) ──────────────────────
@@ -130,6 +130,7 @@ export interface TradingRules {
   time_stop_40d: number
   time_stop_60d: number
   time_stop_90d: number
+  hard_stop_z: number           // absolute Z threshold — exit if |Z| ≥ this on wrong side
 }
 
 export const DEFAULT_RULES: TradingRules = {
@@ -146,6 +147,7 @@ export const DEFAULT_RULES: TradingRules = {
   time_stop_40d: 40,
   time_stop_60d: 60,
   time_stop_90d: 90,
+  hard_stop_z: 2.8,
 }
 
 export interface ShareHistoryRow {
