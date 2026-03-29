@@ -33,6 +33,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [obsFilterYear, setObsFilterYear] = useState<number | null>(2022)
   const [obsFilterMonth, setObsFilterMonth] = useState<number>(0) // Jan
   const [zOverride, setZOverride] = useState<number | null>(null)
+  const [dirOverride, setDirOverride] = useState<'long' | 'short' | null>(null)
 
   const obsStartDate = obsFilterYear != null
     ? `${obsFilterYear}-${String(obsFilterMonth + 1).padStart(2, '0')}-01`
@@ -184,6 +185,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
             <ForwardReturnsTable
               series={activeSpreadSeries}
               selectedWindow={selectedWindow}
+              dirOverride={dirOverride}
               liveSpreadPct={liveSpreadPct}
               rollingMode={rollingMode}
               rules={activeRules}
@@ -202,7 +204,9 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               filterMonth={obsFilterMonth}
               onFilterChange={(year, month) => { setObsFilterYear(year); setObsFilterMonth(month) }}
               zOverride={zOverride}
-              onZOverrideChange={setZOverride}
+              onZOverrideChange={(v) => { setZOverride(v); if (v == null) setDirOverride(null) }}
+              dirOverride={dirOverride}
+              onDirOverrideChange={setDirOverride}
             />
           </>
         )}

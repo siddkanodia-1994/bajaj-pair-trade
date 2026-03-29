@@ -12,6 +12,7 @@ interface Props {
   rules: TradingRules
   obsStartDate?: string | null
   zOverride?: number | null
+  dirOverride?: 'long' | 'short' | null
 }
 
 function fmt(n: number | null, d = 2) {
@@ -49,7 +50,7 @@ function colorForWinRate(n: number | null) {
   return 'text-slate-300'
 }
 
-export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules, obsStartDate, zOverride }: Props) {
+export default function ForwardReturnsTable({ series, selectedWindow, liveSpreadPct, rollingMode, rules, obsStartDate, zOverride, dirOverride }: Props) {
   const last = series[series.length - 1]
   if (!last) return null
 
@@ -74,7 +75,11 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
 
   const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
 
-  const expectedDirection = currentZscore != null ? (currentZscore < 0 ? 1 : currentZscore > 0 ? -1 : 0) : 0
+  // Derived direction from Z-sign, overridable by slicer
+  const derivedDir: 'long' | 'short' = (currentZscore ?? 0) > 0 ? 'short' : 'long'
+  const direction = dirOverride ?? derivedDir
+  // For color logic: long expects spread to widen (+), short expects narrowing (-)
+  const expectedDirection = direction === 'long' ? 1 : -1
 
   const rows = currentZscore != null
     ? computeForwardReturns(
@@ -106,24 +111,30 @@ export default function ForwardReturnsTable({ series, selectedWindow, liveSpread
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row) => {
+            // For short direction, flip spread delta signs and invert win rate
+            const sign = direction === 'short' ? -1 : 1
+            const dispAvg = row.avg_return != null ? row.avg_return * sign : null
+            const dispMedian = row.median_return != null ? row.median_return * sign : null
+            const dispWinRate = row.win_rate != null && direction === 'short' ? 100 - row.win_rate : row.win_rate
+            return (
             <tr key={row.horizon} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
               <td className="py-2.5 text-slate-300 font-medium">{row.horizon_label}</td>
-              <td className={`text-right py-2.5 font-medium ${colorForReturn(row.avg_return, expectedDirection)}`}>
-                {row.avg_return != null ? `${fmt(row.avg_return)}pp` : '—'}
+              <td className={`text-right py-2.5 font-medium ${colorForReturn(dispAvg, expectedDirection)}`}>
+                {dispAvg != null ? `${fmt(dispAvg)}pp` : '—'}
               </td>
-              <td className={`text-right py-2.5 ${colorForReturn(row.median_return, expectedDirection)}`}>
-                {row.median_return != null ? `${fmt(row.median_return)}pp` : '—'}
+              <td className={`text-right py-2.5 ${colorForReturn(dispMedian, expectedDirection)}`}>
+                {dispMedian != null ? `${fmt(dispMedian)}pp` : '—'}
               </td>
-              <td className={`text-right py-2.5 font-medium ${colorForWinRate(row.win_rate)}`}>
-                {pctFmt(row.win_rate)}
+              <td className={`text-right py-2.5 font-medium ${colorForWinRate(dispWinRate)}`}>
+                {pctFmt(dispWinRate)}
               </td>
               <td className="text-right py-2.5 text-slate-400">
                 {row.avg_days != null ? row.avg_days.toFixed(0) : '—'}
               </td>
               <td className="text-right py-2.5 text-slate-400">{row.observations}</td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
 

@@ -16,6 +16,8 @@ interface Props {
   onFilterChange: (year: number | null, month: number) => void
   zOverride: number | null
   onZOverrideChange: (v: number | null) => void
+  dirOverride: 'long' | 'short' | null
+  onDirOverrideChange: (v: 'long' | 'short' | null) => void
 }
 
 const HORIZONS = [5, 20, 40, 60, 90]
@@ -40,10 +42,9 @@ function fmtReturn(n: number) {
   return `${n > 0 ? '+' : ''}${n.toFixed(2)}pp`
 }
 
-export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules, filterYear, filterMonth, onFilterChange, zOverride, onZOverrideChange }: Props) {
+export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules, filterYear, filterMonth, onFilterChange, zOverride, onZOverrideChange, dirOverride, onDirOverrideChange }: Props) {
   const [selectedHorizon, setSelectedHorizon] = useState(60)
   const [zInputStr, setZInputStr] = useState('')
-  const [dirOverride, setDirOverride] = useState<'long' | 'short' | null>(null)
 
   const last = series[series.length - 1]
   const first = series[0]
@@ -103,17 +104,17 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
     if (val !== '' && !isNaN(parsed)) {
       onZOverrideChange(parsed)
       // Reset direction override so it auto-follows the new Z sign
-      setDirOverride(null)
+      onDirOverrideChange(null)
     } else if (val === '') {
       onZOverrideChange(null)
-      setDirOverride(null)
+      onDirOverrideChange(null)
     }
   }
 
   function handleZClear() {
     setZInputStr('')
     onZOverrideChange(null)
-    setDirOverride(null)
+    onDirOverrideChange(null)
   }
 
   return (
@@ -133,7 +134,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
               value={displayedZ}
               onChange={e => handleZChange(e.target.value)}
               onFocus={() => { if (zInputStr === '') setZInputStr(currentZscore != null ? currentZscore.toFixed(2) : '') }}
-              onBlur={e => { if (e.target.value === '' || isNaN(parseFloat(e.target.value))) { setZInputStr(''); onZOverrideChange(null); setDirOverride(null) } }}
+              onBlur={e => { if (e.target.value === '' || isNaN(parseFloat(e.target.value))) { setZInputStr(''); onZOverrideChange(null); onDirOverrideChange(null) } }}
               className="w-20 text-xs bg-slate-700 border border-slate-600 text-blue-300 font-medium rounded px-2 py-0.5 focus:outline-none focus:border-blue-500"
               title="Override Z-score — leave blank to use computed value"
             />
@@ -170,7 +171,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
           {/* Direction slicer */}
           <div className="flex rounded-md overflow-hidden border border-slate-600 text-xs font-medium">
             <button
-              onClick={() => setDirOverride('long')}
+              onClick={() => onDirOverrideChange('long')}
               className={`px-3 py-1 transition-colors ${
                 direction === 'long'
                   ? 'bg-green-700 text-white'
@@ -180,7 +181,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
               Long
             </button>
             <button
-              onClick={() => setDirOverride('short')}
+              onClick={() => onDirOverrideChange('short')}
               className={`px-3 py-1 transition-colors border-l border-slate-600 ${
                 direction === 'short'
                   ? 'bg-red-700 text-white'
