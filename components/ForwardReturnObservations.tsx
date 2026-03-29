@@ -42,8 +42,8 @@ function fmtReturn(n: number) {
 
 export default function ForwardReturnObservations({ series, selectedWindow, liveSpreadPct, rollingMode, rules, filterYear, filterMonth, onFilterChange, zOverride, onZOverrideChange }: Props) {
   const [selectedHorizon, setSelectedHorizon] = useState(60)
-  // Local string state for the input field
   const [zInputStr, setZInputStr] = useState('')
+  const [dirOverride, setDirOverride] = useState<'long' | 'short' | null>(null)
 
   const last = series[series.length - 1]
   const first = series[0]
@@ -82,6 +82,10 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
 
   const currentZscore = zOverride != null ? zOverride : computedZscore
 
+  // Direction: auto-derived from Z sign, overridable by slicer
+  const derivedDirection: 'long' | 'short' = (currentZscore ?? 0) > 0 ? 'short' : 'long'
+  const direction = dirOverride ?? derivedDirection
+
   const fixedStats = !rollingMode ? computeFixedWindowStats(visibleValues) : null
 
   const observations = currentZscore != null
@@ -91,7 +95,6 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
       )
     : []
 
-  // Display value for the input: typed string if editing, else computed/override value
   const displayedZ = zInputStr !== '' ? zInputStr : (currentZscore != null ? currentZscore.toFixed(2) : '')
 
   function handleZChange(val: string) {
@@ -99,14 +102,18 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
     const parsed = parseFloat(val)
     if (val !== '' && !isNaN(parsed)) {
       onZOverrideChange(parsed)
+      // Reset direction override so it auto-follows the new Z sign
+      setDirOverride(null)
     } else if (val === '') {
       onZOverrideChange(null)
+      setDirOverride(null)
     }
   }
 
   function handleZClear() {
     setZInputStr('')
     onZOverrideChange(null)
+    setDirOverride(null)
   }
 
   return (
@@ -126,7 +133,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
               value={displayedZ}
               onChange={e => handleZChange(e.target.value)}
               onFocus={() => { if (zInputStr === '') setZInputStr(currentZscore != null ? currentZscore.toFixed(2) : '') }}
-              onBlur={e => { if (e.target.value === '' || isNaN(parseFloat(e.target.value))) { setZInputStr(''); onZOverrideChange(null) } }}
+              onBlur={e => { if (e.target.value === '' || isNaN(parseFloat(e.target.value))) { setZInputStr(''); onZOverrideChange(null); setDirOverride(null) } }}
               className="w-20 text-xs bg-slate-700 border border-slate-600 text-blue-300 font-medium rounded px-2 py-0.5 focus:outline-none focus:border-blue-500"
               title="Override Z-score — leave blank to use computed value"
             />
@@ -159,6 +166,29 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
                 {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
             )}
+          </div>
+          {/* Direction slicer */}
+          <div className="flex rounded-md overflow-hidden border border-slate-600 text-xs font-medium">
+            <button
+              onClick={() => setDirOverride('long')}
+              className={`px-3 py-1 transition-colors ${
+                direction === 'long'
+                  ? 'bg-green-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+              }`}
+            >
+              Long
+            </button>
+            <button
+              onClick={() => setDirOverride('short')}
+              className={`px-3 py-1 transition-colors border-l border-slate-600 ${
+                direction === 'short'
+                  ? 'bg-red-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+              }`}
+            >
+              Short
+            </button>
           </div>
           {/* Horizon pills */}
           <div className="flex gap-1">
@@ -199,35 +229,42 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
             </tr>
           </thead>
           <tbody>
-            {observations.map((obs, idx) => (
-              <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
-                <td className="py-2 text-slate-300">{fmtDate(obs.entry_date)}</td>
-                <td className="py-2 text-right text-slate-400">{fmtZ(obs.entry_zscore)}</td>
-                <td className="py-2 text-right text-slate-300">{fmtSpread(obs.entry_spread)}</td>
-                <td className="py-2 pl-6 text-slate-300">{fmtDate(obs.exit_date)}</td>
-                <td className="py-2 text-right text-slate-400">{fmtZ(obs.exit_zscore)}</td>
-                <td className="py-2 text-right text-slate-300">{fmtSpread(obs.exit_spread)}</td>
-                <td className={`py-2 text-right font-medium ${obs.return_pp > 0 ? 'text-green-400' : obs.return_pp < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                  {fmtReturn(obs.return_pp)}
-                </td>
-                <td className="py-2 text-right text-slate-400">{obs.calendar_days}</td>
-                <td className="py-2 text-right">
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                    obs.exit_reason === 'target' ? 'bg-green-900/40 text-green-400' :
-                    obs.exit_reason === 'open'   ? 'bg-amber-900/40 text-amber-400' :
-                    'bg-slate-700 text-slate-400'
-                  }`}>
-                    {obs.exit_reason === 'target' ? 'target' : obs.exit_reason === 'open' ? 'open' : 'time stop'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {observations.map((obs, idx) => {
+              const isWin = direction === 'long' ? obs.return_pp > 0 : obs.return_pp < 0
+              const returnColor = obs.return_pp === 0 ? 'text-slate-400' : isWin ? 'text-green-400' : 'text-red-400'
+              return (
+                <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
+                  <td className="py-2 text-slate-300">{fmtDate(obs.entry_date)}</td>
+                  <td className="py-2 text-right text-slate-400">{fmtZ(obs.entry_zscore)}</td>
+                  <td className="py-2 text-right text-slate-300">{fmtSpread(obs.entry_spread)}</td>
+                  <td className="py-2 pl-6 text-slate-300">{fmtDate(obs.exit_date)}</td>
+                  <td className="py-2 text-right text-slate-400">{fmtZ(obs.exit_zscore)}</td>
+                  <td className="py-2 text-right text-slate-300">{fmtSpread(obs.exit_spread)}</td>
+                  <td className={`py-2 text-right font-medium ${returnColor}`}>
+                    {fmtReturn(obs.return_pp)}
+                  </td>
+                  <td className="py-2 text-right text-slate-400">{obs.calendar_days}</td>
+                  <td className="py-2 text-right">
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      obs.exit_reason === 'target' ? 'bg-green-900/40 text-green-400' :
+                      obs.exit_reason === 'open'   ? 'bg-amber-900/40 text-amber-400' :
+                      'bg-slate-700 text-slate-400'
+                    }`}>
+                      {obs.exit_reason === 'target' ? 'target' : obs.exit_reason === 'open' ? 'open' : 'time stop'}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}
 
       <div className="mt-3 text-xs text-slate-600">
-        {observations.length} observation{observations.length !== 1 ? 's' : ''} · Return = exit spread − entry spread (pp). Positive = spread widened.
+        {observations.length} observation{observations.length !== 1 ? 's' : ''} · Return = exit spread − entry spread (pp).{' '}
+        {direction === 'long'
+          ? 'Positive = spread widened (profit for long Finserv / short Finance).'
+          : 'Negative = spread narrowed (profit for short Finserv / long Finance).'}
       </div>
     </div>
   )
