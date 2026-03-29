@@ -13,8 +13,9 @@ import DailySpreadTable from './DailySpreadTable'
 import SharesTab from './SharesTab'
 import RulesTab from './RulesTab'
 import ActiveTradeTab from './ActiveTradeTab'
+import TradeSetupTab from './TradeSetupTab'
 
-type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules' | 'active-trade'
+type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules' | 'active-trade' | 'trade-setup'
 
 interface Props {
   spreadSeries: SpreadPoint[]
@@ -102,6 +103,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   }
 
   const liveSpreadPct = liveData?.spread_pct
+
+  // Current Z-score for the selected window (last point in series)
+  const currentZ = useMemo(() => {
+    const last = activeSpreadSeries[activeSpreadSeries.length - 1]
+    return last?.windows[selectedWindow]?.zscore ?? null
+  }, [activeSpreadSeries, selectedWindow])
 
   const TAB_STYLE = (tab: Tab) =>
     `px-4 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
@@ -191,6 +198,9 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
           </button>
           <button onClick={() => setActiveTab('active-trade')} className={TAB_STYLE('active-trade')}>
             Active Trade
+          </button>
+          <button onClick={() => setActiveTab('trade-setup')} className={TAB_STYLE('trade-setup')}>
+            Trade Setup
           </button>
         </div>
       </header>
@@ -314,6 +324,10 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               onRulesChange={handleRulesChange}
             />
           </div>
+        )}
+
+        {activeTab === 'trade-setup' && (
+          <TradeSetupTab liveData={liveData} currentZ={currentZ} />
         )}
 
         {activeTab === 'active-trade' && (
