@@ -232,6 +232,8 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
             {observations.map((obs, idx) => {
               const isWin = direction === 'long' ? obs.return_pp > 0 : obs.return_pp < 0
               const returnColor = obs.return_pp === 0 ? 'text-slate-400' : isWin ? 'text-green-400' : 'text-red-400'
+              // For short trades, P&L is the negative of raw spread movement
+              const displayReturn = direction === 'short' ? -obs.return_pp : obs.return_pp
               return (
                 <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
                   <td className="py-2 text-slate-300">{fmtDate(obs.entry_date)}</td>
@@ -241,7 +243,7 @@ export default function ForwardReturnObservations({ series, selectedWindow, live
                   <td className="py-2 text-right text-slate-400">{fmtZ(obs.exit_zscore)}</td>
                   <td className="py-2 text-right text-slate-300">{fmtSpread(obs.exit_spread)}</td>
                   <td className={`py-2 text-right font-medium ${returnColor}`}>
-                    {fmtReturn(obs.return_pp)}
+                    {fmtReturn(displayReturn)}
                   </td>
                   <td className="py-2 text-right text-slate-400">{obs.calendar_days}</td>
                   <td className="py-2 text-right">
