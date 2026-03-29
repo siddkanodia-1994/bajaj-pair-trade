@@ -167,9 +167,9 @@ export function evaluateTradeSignal(
   }
   if (currentZ <= rules.long_threshold) {
     return makeSignal(
-      'WATCH', 'low',
-      'WATCH — Approaching',
-      `Z (${currentZ.toFixed(2)}) approaching entry. Wait for Z ≤ ${rules.strong_long_threshold} to enter.`
+      'ENTER', 'medium',
+      'ENTER — Long',
+      `Z (${currentZ.toFixed(2)}) ≤ ${rules.long_threshold}. Initiate Tranche 1 (50%).`
     )
   }
   if (currentZ >= rules.strong_short_threshold) {
@@ -181,9 +181,9 @@ export function evaluateTradeSignal(
   }
   if (currentZ >= rules.short_threshold) {
     return makeSignal(
-      'WATCH', 'low',
-      'WATCH — Approaching Short',
-      `Z (${currentZ.toFixed(2)}) approaching short entry. Wait for Z ≥ ${rules.strong_short_threshold}.`
+      'ENTER', 'medium',
+      'ENTER — Short',
+      `Z (${currentZ.toFixed(2)}) ≥ ${rules.short_threshold}. Initiate Tranche 1 (50%) short.`
     )
   }
 

@@ -405,7 +405,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
               No active trade. Signal will update automatically when Z-score approaches entry threshold.
             </div>
             <div className="mt-2 text-xs text-slate-600">
-              Entry triggers at Z ≤ {rules.strong_long_threshold} (Strong Long) on the {selectedWindow} window.
+              Entry triggers at Z ≤ {rules.long_threshold} (Long) or Z ≤ {rules.strong_long_threshold} (Strong Long) on the {selectedWindow} window.
             </div>
           </div>
         )}
