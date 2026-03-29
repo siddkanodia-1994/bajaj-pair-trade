@@ -191,7 +191,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
       <div>
         <h2 className="text-base font-semibold text-white">Active Trade</h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Signal engine based on QuantForge rules framework · 2Y window · Fixed mode · 60-day time stop · Hard stop Z ≤ −2.80
+          Signal engine based on QuantForge rules framework · 2Y window · Fixed mode · {rules.time_stop_60d}-day time stop · Hard stop Z ≤ −{rules.hard_stop_z}
         </p>
       </div>
 

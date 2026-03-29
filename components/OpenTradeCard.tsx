@@ -15,7 +15,6 @@ interface Props {
 }
 
 const TIME_STOP_DAYS = 60
-const HARD_STOP_Z = -2.8
 
 function fmt(n: number, d = 2) {
   return `${n > 0 ? '+' : ''}${n.toFixed(d)}`
@@ -123,7 +122,7 @@ export default function OpenTradeCard({
       {/* Reference levels */}
       <div className="flex flex-wrap gap-4 text-xs text-slate-400 mb-4 pb-4 border-b border-slate-700/50">
         <span>Exit Zone: Z returns to <span className="text-white font-medium">[{rules.exit_zone_lo}, {rules.exit_zone_hi}]</span></span>
-        <span>Hard Stop: Z ≤ <span className="text-red-400 font-medium">{HARD_STOP_Z}</span></span>
+        <span>Hard Stop: Z ≤ <span className="text-red-400 font-medium">−{rules.hard_stop_z}</span></span>
         <span>Add-to-Trade Gap: <span className="text-white font-medium">{rules.add_to_trade_gap} SD</span></span>
       </div>
 
