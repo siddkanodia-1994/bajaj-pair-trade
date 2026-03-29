@@ -187,6 +187,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
           <button onClick={() => setActiveTab('dashboard')} className={TAB_STYLE('dashboard')}>
             Dashboard
           </button>
+          <button onClick={() => setActiveTab('active-trade')} className={TAB_STYLE('active-trade')}>
+            Active Trade
+          </button>
+          <button onClick={() => setActiveTab('trade-setup')} className={TAB_STYLE('trade-setup')}>
+            Trade Setup
+          </button>
           <button onClick={() => setActiveTab('daily-spread')} className={TAB_STYLE('daily-spread')}>
             Daily Spread
           </button>
@@ -195,12 +201,6 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
           </button>
           <button onClick={() => setActiveTab('rules')} className={TAB_STYLE('rules')}>
             Rules {hasOverrides && <span className="ml-1 text-amber-400">●</span>}
-          </button>
-          <button onClick={() => setActiveTab('active-trade')} className={TAB_STYLE('active-trade')}>
-            Active Trade
-          </button>
-          <button onClick={() => setActiveTab('trade-setup')} className={TAB_STYLE('trade-setup')}>
-            Trade Setup
           </button>
         </div>
       </header>
