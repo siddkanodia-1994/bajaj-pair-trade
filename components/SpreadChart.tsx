@@ -64,15 +64,31 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode, lightMode }: Props) {
   const chartColors = lightMode ? {
-    grid:     '#6C584C',
-    axisTick: '#5A4438',
-    axisLine: '#7B6456',
-    label:    '#5A4438',
+    grid:       '#6C584C',
+    axisTick:   '#5A4438',
+    axisLine:   '#7B6456',
+    label:      '#5A4438',
+    band2Fill:  '#ef444438',
+    band2FillL: '#22c55e38',
+    band1Fill:  '#ef444450',
+    band1FillL: '#22c55e50',
+    line1:      '#ef4444aa',
+    line1L:     '#22c55eaa',
+    line2:      '#ef444470',
+    line2L:     '#22c55e70',
   } : {
-    grid:     '#1e293b',
-    axisTick: '#64748b',
-    axisLine: '#334155',
-    label:    '#64748b',
+    grid:       '#1e293b',
+    axisTick:   '#64748b',
+    axisLine:   '#334155',
+    label:      '#64748b',
+    band2Fill:  '#ef444415',
+    band2FillL: '#22c55e15',
+    band1Fill:  '#ef444420',
+    band1FillL: '#22c55e20',
+    line1:      '#ef444440',
+    line1L:     '#22c55e40',
+    line2:      '#ef444425',
+    line2L:     '#22c55e25',
   }
   // Calendar-anchored slice
   let visibleSeries: SpreadPoint[]
@@ -196,12 +212,12 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           <Tooltip content={<CustomTooltip />} />
 
           {/* ±2SD band — no data override so x-axis stays consistent */}
-          <Area dataKey="upper2" stroke="none" fill="#ef444415" legendType="none" name="upper2" />
-          <Area dataKey="lower2" stroke="none" fill="#22c55e15" legendType="none" name="lower2" />
+          <Area dataKey="upper2" stroke="none" fill={chartColors.band2Fill} legendType="none" name="upper2" />
+          <Area dataKey="lower2" stroke="none" fill={chartColors.band2FillL} legendType="none" name="lower2" />
 
           {/* ±1SD band */}
-          <Area dataKey="upper1" stroke="none" fill="#ef444420" legendType="none" name="upper1" />
-          <Area dataKey="lower1" stroke="none" fill="#22c55e20" legendType="none" name="lower1" />
+          <Area dataKey="upper1" stroke="none" fill={chartColors.band1Fill} legendType="none" name="upper1" />
+          <Area dataKey="lower1" stroke="none" fill={chartColors.band1FillL} legendType="none" name="lower1" />
 
           {/* Mean line */}
           <Line
@@ -216,10 +232,10 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           />
 
           {/* SD boundary lines */}
-          <Line dataKey="upper1" stroke="#ef444440" strokeWidth={1} dot={false} activeDot={false} name="upper1Line" legendType="none" />
-          <Line dataKey="lower1" stroke="#22c55e40" strokeWidth={1} dot={false} activeDot={false} name="lower1Line" legendType="none" />
-          <Line dataKey="upper2" stroke="#ef444425" strokeWidth={1} dot={false} activeDot={false} name="upper2Line" legendType="none" />
-          <Line dataKey="lower2" stroke="#22c55e25" strokeWidth={1} dot={false} activeDot={false} name="lower2Line" legendType="none" />
+          <Line dataKey="upper1" stroke={chartColors.line1} strokeWidth={1} dot={false} activeDot={false} name="upper1Line" legendType="none" />
+          <Line dataKey="lower1" stroke={chartColors.line1L} strokeWidth={1} dot={false} activeDot={false} name="lower1Line" legendType="none" />
+          <Line dataKey="upper2" stroke={chartColors.line2} strokeWidth={1} dot={false} activeDot={false} name="upper2Line" legendType="none" />
+          <Line dataKey="lower2" stroke={chartColors.line2L} strokeWidth={1} dot={false} activeDot={false} name="lower2Line" legendType="none" />
 
           {/* Spread line */}
           <Line
