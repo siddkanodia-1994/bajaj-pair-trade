@@ -251,12 +251,12 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           {liveSpreadPct != null && (
             <ReferenceLine
               y={liveSpreadPct}
-              stroke="#f59e0b"
+              stroke={lightMode ? '#000000' : '#f59e0b'}
               strokeWidth={1.5}
               strokeDasharray="5 4"
               label={{
                 value: `${liveSpreadPct > 0 ? '+' : ''}${liveSpreadPct.toFixed(2)}%`,
-                fill: '#f59e0b',
+                fill: lightMode ? '#000000' : '#f59e0b',
                 fontSize: 10,
                 position: 'insideTopRight',
               }}
