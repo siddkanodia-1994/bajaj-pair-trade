@@ -16,7 +16,7 @@ interface Props {
   liveSpreadPct: number | undefined
   rules: TradingRules
   isOwner: boolean
-  onOwnerUnlock: (ownerToken: string) => void
+  onOwnerUnlock: () => void
 }
 
 const TRANCHE_SIZES = ['50%', '30%', '20%']
@@ -106,20 +106,17 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Wrong password')
 
-      // Store owner's session token so their trades use the 'owner' token
-      const { setSessionToken } = await import('@/lib/session')
-      setSessionToken(data.ownerToken)
-
-      // Reload trades with owner token
+      // Cookie is now set by the server — re-fetch using the visitor's original session token.
+      // The server will see bajaj_owner cookie and return ownerTrades alongside the visitor's trades.
       const tradesRes = await fetch('/api/trades', {
-        headers: { 'X-Session-Token': data.ownerToken },
+        headers: { 'X-Session-Token': getSessionToken() },
       })
       const tradesData = await tradesRes.json()
-      setOwnerTranches(tradesData.ownerTrades ?? tradesData.trades ?? [])
-      setMyTranches(tradesData.trades ?? [])
+      setOwnerTranches(tradesData.ownerTrades ?? [])
+      // myTranches is intentionally NOT overwritten — visitor's personal trades stay intact
       setOwnerUnlocked(true)
       setOwnerPassword('')
-      onOwnerUnlock(data.ownerToken)
+      onOwnerUnlock()
     } catch (e) {
       setOwnerError(String(e).replace('Error: ', ''))
     } finally {

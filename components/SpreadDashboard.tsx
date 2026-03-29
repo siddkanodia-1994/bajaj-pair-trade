@@ -324,13 +324,8 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               liveSpreadPct={liveSpreadPct}
               rules={activeRules}
               isOwner={isOwner}
-              onOwnerUnlock={(token) => {
-                // Owner has authenticated — mark as owner and persist the probe result
+              onOwnerUnlock={() => {
                 setIsOwner(true)
-                // Store session token for owner trades (passed back from verify-owner)
-                if (typeof window !== 'undefined') {
-                  import('@/lib/session').then(({ setSessionToken }) => setSessionToken(token))
-                }
               }}
             />
           </div>
