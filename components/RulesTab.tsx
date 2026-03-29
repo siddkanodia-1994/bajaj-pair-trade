@@ -2,9 +2,11 @@
 
 import { useState, useCallback } from 'react'
 import type { TradingRules } from '@/types'
+import { setLocalRuleOverride, getLocalRuleOverrides } from '@/lib/local-rules'
 
 interface Props {
   rules: TradingRules
+  isOwner: boolean
   onRulesChange: (rules: TradingRules) => void
 }
 
@@ -16,6 +18,7 @@ function RuleField({
   step = 0.1,
   min,
   max,
+  isOverridden,
   onSave,
 }: {
   value: number
@@ -24,6 +27,7 @@ function RuleField({
   step?: number
   min?: number
   max?: number
+  isOverridden?: boolean
   onSave: (key: string, val: number) => void
 }) {
   const [editing, setEditing] = useState(false)
@@ -58,15 +62,22 @@ function RuleField({
   }
 
   return (
-    <button
-      onClick={() => { setDraft(String(value)); setEditing(true) }}
-      className={`w-20 text-center text-xs rounded px-1.5 py-0.5 transition-colors font-mono
-        ${saving ? 'bg-blue-900/50 text-blue-300' : 'bg-slate-700/50 hover:bg-slate-600/60 text-slate-200 hover:text-white border border-slate-600/50 hover:border-slate-500'}
-      `}
-      title="Click to edit"
-    >
-      {value > 0 ? '+' : ''}{value}
-    </button>
+    <div className="relative inline-flex items-center gap-1">
+      <button
+        onClick={() => { setDraft(String(value)); setEditing(true) }}
+        className={`w-20 text-center text-xs rounded px-1.5 py-0.5 transition-colors font-mono
+          ${saving ? 'bg-blue-900/50 text-blue-300' :
+            isOverridden ? 'bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 border border-amber-700/60 hover:border-amber-600' :
+            'bg-slate-700/50 hover:bg-slate-600/60 text-slate-200 hover:text-white border border-slate-600/50 hover:border-slate-500'}
+        `}
+        title={isOverridden ? 'Locally overridden — click to edit' : 'Click to edit'}
+      >
+        {value > 0 ? '+' : ''}{value}
+      </button>
+      {isOverridden && (
+        <span className="text-amber-400 text-xs leading-none" title="Locally overridden">●</span>
+      )}
+    </div>
   )
 }
 
@@ -81,19 +92,32 @@ function Section({ title, description, children }: { title: string; description?
   )
 }
 
-export default function RulesTab({ rules, onRulesChange }: Props) {
+export default function RulesTab({ rules, isOwner, onRulesChange }: Props) {
+  const localOverrides = getLocalRuleOverrides()
+
   const handleSave = useCallback(async (key: string, val: number) => {
-    const body = [{ rule_key: key, rule_value: val }]
-    const res = await fetch('/api/rules', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (res.ok) {
-      const updated: TradingRules = await res.json()
-      onRulesChange(updated)
+    if (isOwner) {
+      // Owner: persist to DB
+      const body = [{ rule_key: key, rule_value: val }]
+      const res = await fetch('/api/rules', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        const updated: TradingRules = await res.json()
+        onRulesChange(updated)
+      }
+    } else {
+      // Visitor: save to localStorage only
+      setLocalRuleOverride(key as keyof TradingRules, val)
+      onRulesChange({ ...rules, [key]: val })
     }
-  }, [onRulesChange])
+  }, [isOwner, rules, onRulesChange])
+
+  function isOv(key: keyof TradingRules) {
+    return !isOwner && key in localOverrides
+  }
 
   return (
     <div className="space-y-6">
@@ -118,10 +142,10 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
                 <div className="text-xs text-slate-500">Long BAJAJFINSV / Short BAJFINANCE</div>
               </td>
               <td className="text-right py-3">
-                <RuleField value={rules.strong_long_threshold} ruleKey="strong_long_threshold" onSave={handleSave} />
+                <RuleField value={rules.strong_long_threshold} ruleKey="strong_long_threshold" isOverridden={isOv('strong_long_threshold')} onSave={handleSave} />
               </td>
               <td className="text-right py-3">
-                <RuleField value={rules.entry_band} ruleKey="entry_band" onSave={handleSave} step={0.05} min={0.05} max={1} />
+                <RuleField value={rules.entry_band} ruleKey="entry_band" isOverridden={isOv('entry_band')} onSave={handleSave} step={0.05} min={0.05} max={1} />
               </td>
               <td className="py-3 pl-6 text-xs text-slate-500">
                 z ≤ {rules.strong_long_threshold}
@@ -133,7 +157,7 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
                 <div className="text-xs text-slate-500">Long BAJAJFINSV / Short BAJFINANCE</div>
               </td>
               <td className="text-right py-3">
-                <RuleField value={rules.long_threshold} ruleKey="long_threshold" onSave={handleSave} />
+                <RuleField value={rules.long_threshold} ruleKey="long_threshold" isOverridden={isOv('long_threshold')} onSave={handleSave} />
               </td>
               <td className="text-right py-3 text-xs text-slate-600">(shared)</td>
               <td className="py-3 pl-6 text-xs text-slate-500">
@@ -157,7 +181,7 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
                 <div className="text-xs text-slate-500">Short BAJAJFINSV / Long BAJFINANCE</div>
               </td>
               <td className="text-right py-3">
-                <RuleField value={rules.short_threshold} ruleKey="short_threshold" onSave={handleSave} />
+                <RuleField value={rules.short_threshold} ruleKey="short_threshold" isOverridden={isOv('short_threshold')} onSave={handleSave} />
               </td>
               <td className="text-right py-3 text-xs text-slate-600">(shared)</td>
               <td className="py-3 pl-6 text-xs text-slate-500">
@@ -170,7 +194,7 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
                 <div className="text-xs text-slate-500">Short BAJAJFINSV / Long BAJFINANCE</div>
               </td>
               <td className="text-right py-3">
-                <RuleField value={rules.strong_short_threshold} ruleKey="strong_short_threshold" onSave={handleSave} />
+                <RuleField value={rules.strong_short_threshold} ruleKey="strong_short_threshold" isOverridden={isOv('strong_short_threshold')} onSave={handleSave} />
               </td>
               <td className="text-right py-3 text-xs text-slate-600">(shared)</td>
               <td className="py-3 pl-6 text-xs text-slate-500">
@@ -213,11 +237,11 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
             <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Long Exit Zone</div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-slate-500 w-32">Lower bound (SD)</div>
-              <RuleField value={rules.exit_zone_lo} ruleKey="exit_zone_lo" onSave={handleSave} min={-5} max={0} />
+              <RuleField value={rules.exit_zone_lo} ruleKey="exit_zone_lo" isOverridden={isOv('exit_zone_lo')} onSave={handleSave} min={-5} max={0} />
             </div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-slate-500 w-32">Upper bound (SD)</div>
-              <RuleField value={rules.exit_zone_hi} ruleKey="exit_zone_hi" onSave={handleSave} min={-2} max={2} />
+              <RuleField value={rules.exit_zone_hi} ruleKey="exit_zone_hi" isOverridden={isOv('exit_zone_hi')} onSave={handleSave} min={-2} max={2} />
             </div>
             <div className="text-xs text-slate-600 mt-1">
               Short exit zone is mirrored: [{-rules.exit_zone_hi}, {-rules.exit_zone_lo}]
@@ -228,7 +252,7 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
             <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Add-to-Trade</div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-slate-500 w-32">Gap (SD further)</div>
-              <RuleField value={rules.add_to_trade_gap} ruleKey="add_to_trade_gap" onSave={handleSave} step={0.25} min={0.1} max={3} />
+              <RuleField value={rules.add_to_trade_gap} ruleKey="add_to_trade_gap" isOverridden={isOv('add_to_trade_gap')} onSave={handleSave} step={0.25} min={0.1} max={3} />
             </div>
             <div className="text-xs text-slate-600 mt-1">
               A 2nd observation is accepted only if z moves {rules.add_to_trade_gap} SD further than the first entry while still in trade.
@@ -239,7 +263,7 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
             <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Hard Stop</div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-slate-500 w-32">|Z| threshold</div>
-              <RuleField value={rules.hard_stop_z} ruleKey="hard_stop_z" onSave={handleSave} step={0.1} min={1.5} max={5} />
+              <RuleField value={rules.hard_stop_z} ruleKey="hard_stop_z" isOverridden={isOv('hard_stop_z')} onSave={handleSave} step={0.1} min={1.5} max={5} />
             </div>
             <div className="text-xs text-slate-600 mt-1">
               Exit immediately if Z ≤ −{rules.hard_stop_z} (long) or Z ≥ +{rules.hard_stop_z} (short). Applies to Active Trade and Analog Observations.
@@ -274,6 +298,7 @@ export default function RulesTab({ rules, onRulesChange }: Props) {
                   <RuleField
                     value={rules[key] as number}
                     ruleKey={key}
+                    isOverridden={isOv(key)}
                     onSave={handleSave}
                     step={1}
                     min={1}

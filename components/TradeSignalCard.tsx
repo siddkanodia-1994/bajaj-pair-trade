@@ -16,6 +16,7 @@ interface Props {
   onAdd: (ov?: Overrides) => void
   onExitAll: (reason: 'target' | 'time_stop' | 'hard_stop' | 'manual') => void
   saving: boolean
+  readOnly?: boolean
 }
 
 function fmt(n: number, d = 2) {
@@ -31,7 +32,7 @@ const EXIT_REASONS: { value: 'target' | 'time_stop' | 'hard_stop' | 'manual'; la
 
 export default function TradeSignalCard({
   signal, currentZ, liveSpreadPct, selectedWindow,
-  openTranches, onEnter, onAdd, onExitAll, saving,
+  openTranches, onEnter, onAdd, onExitAll, saving, readOnly = false,
 }: Props) {
   const [manualOpen, setManualOpen] = useState(false)
   const [manualSpread, setManualSpread] = useState('')
@@ -95,7 +96,7 @@ export default function TradeSignalCard({
       </div>
 
       {/* Entry preview (ENTER or ADD) */}
-      {(isEnter || isAdd) && (
+      {!readOnly && (isEnter || isAdd) && (
         <div className="mt-4 pt-4 border-t border-slate-700/50">
           <div className="text-xs text-slate-500 mb-2">Entry will be stamped at:</div>
           <div className="flex flex-wrap gap-4 text-sm mb-4">
@@ -126,7 +127,7 @@ export default function TradeSignalCard({
       )}
 
       {/* Exit action (EXIT signals) */}
-      {isExit && openTranches.length > 0 && (
+      {!readOnly && isExit && openTranches.length > 0 && (
         <div className="mt-4 pt-4 border-t border-slate-700/50">
           <div className="text-xs text-slate-500 mb-2">
             Close all open tranches — exit spread: <span className="text-white font-medium">{spreadStr}</span>
@@ -167,7 +168,7 @@ export default function TradeSignalCard({
       )}
 
       {/* Manual override — always visible when a new tranche can still be added */}
-      {openTranches.length < 3 && !isEnter && !isAdd && (
+      {!readOnly && openTranches.length < 3 && !isEnter && !isAdd && (
         <div className="mt-4 pt-3 border-t border-slate-700/30">
           <button
             onClick={() => manualOpen ? setManualOpen(false) : openManual()}

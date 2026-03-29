@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { SpreadPoint, StakeHistoryRow, WindowKey, LiveSpreadData, TradingRules } from '@/types'
 import { recomputeSpreadSeries } from '@/lib/spread-calculator'
+import { getLocalRuleOverrides, clearLocalRuleOverrides, hasLocalOverrides } from '@/lib/local-rules'
 import LiveSpreadBanner from './LiveSpreadBanner'
 import SpreadChart from './SpreadChart'
 import StatisticsPanel from './StatisticsPanel'
@@ -30,10 +31,15 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [lightMode, setLightMode] = useState(false)
   const [currentStakes, setCurrentStakes] = useState<StakeHistoryRow[]>(stakes)
   const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
+  const [hasOverrides, setHasOverrides] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
   const [obsFilterYear, setObsFilterYear] = useState<number | null>(2022)
   const [obsFilterMonth, setObsFilterMonth] = useState<number>(0) // Jan
   const [zOverride, setZOverride] = useState<number | null>(null)
   const [dirOverride, setDirOverride] = useState<'long' | 'short' | null>(null)
+
+  // Store the DB-fetched rules so we can always reset back to them
+  const dbRulesRef = useRef<TradingRules>(initialRules)
 
   const obsStartDate = obsFilterYear != null
     ? `${obsFilterYear}-${String(obsFilterMonth + 1).padStart(2, '0')}-01`
@@ -46,7 +52,42 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
 
   useEffect(() => {
     setLightMode(document.documentElement.classList.contains('light'))
-  }, [])
+
+    // Detect owner cookie via a lightweight fetch (cookie is HttpOnly, can't read from JS)
+    fetch('/api/auth/verify-owner', { method: 'HEAD' }).catch(() => {})
+    // Instead, detect by trying to write a rule and checking if the response is 403
+    // We use a separate flag endpoint instead — detect from the cookie header presence via document.cookie
+    // bajaj_owner is HttpOnly so we can't read it directly. We use a test fetch on mount.
+    fetch('/api/rules', { method: 'GET' }).then(async (r) => {
+      if (r.ok) {
+        // Try a no-op PATCH with empty array — 403 = visitor, 200 = owner
+        const probe = await fetch('/api/rules', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([]),
+        })
+        setIsOwner(probe.ok)
+      }
+    }).catch(() => {})
+
+    // Merge DB rules + localStorage overrides
+    const overrides = getLocalRuleOverrides()
+    if (Object.keys(overrides).length > 0) {
+      setActiveRules({ ...initialRules, ...overrides })
+      setHasOverrides(true)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleResetRules() {
+    clearLocalRuleOverrides()
+    setActiveRules(dbRulesRef.current)
+    setHasOverrides(false)
+  }
+
+  function handleRulesChange(updated: TradingRules) {
+    setActiveRules(updated)
+    setHasOverrides(hasLocalOverrides())
+  }
 
   function toggleTheme() {
     const next = !lightMode
@@ -102,6 +143,15 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {hasOverrides && (
+              <button
+                onClick={handleResetRules}
+                className="text-xs px-3 py-1 rounded-full border border-amber-600 bg-amber-600/10 text-amber-400 hover:bg-amber-600/20 transition-colors"
+                title="Clear your local rule overrides and restore original rules"
+              >
+                Reset Rules
+              </button>
+            )}
             <button
               onClick={() => setRollingMode(r => !r)}
               className={`text-xs px-3 py-1 rounded-full border transition-colors ${
@@ -137,7 +187,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
             Shares
           </button>
           <button onClick={() => setActiveTab('rules')} className={TAB_STYLE('rules')}>
-            Rules
+            Rules {hasOverrides && <span className="ml-1 text-amber-400">●</span>}
           </button>
           <button onClick={() => setActiveTab('active-trade')} className={TAB_STYLE('active-trade')}>
             Active Trade
@@ -239,12 +289,30 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
         {activeTab === 'rules' && (
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <div className="mb-5">
-              <h2 className="text-base font-semibold text-white">Trading Rules</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Click any value to edit. Changes save instantly and propagate to all signals and observations.
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-white">Trading Rules</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {isOwner
+                      ? 'Owner mode · Changes save to database and affect all users.'
+                      : 'Visitor mode · Changes are stored locally in your browser only and do not affect other users.'}
+                  </p>
+                </div>
+                {hasOverrides && !isOwner && (
+                  <button
+                    onClick={handleResetRules}
+                    className="text-xs px-3 py-1 rounded border border-amber-600 bg-amber-600/10 text-amber-400 hover:bg-amber-600/20 transition-colors"
+                  >
+                    Reset to defaults
+                  </button>
+                )}
+              </div>
             </div>
-            <RulesTab rules={activeRules} onRulesChange={setActiveRules} />
+            <RulesTab
+              rules={activeRules}
+              isOwner={isOwner}
+              onRulesChange={handleRulesChange}
+            />
           </div>
         )}
 
@@ -255,6 +323,15 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               selectedWindow={selectedWindow}
               liveSpreadPct={liveSpreadPct}
               rules={activeRules}
+              isOwner={isOwner}
+              onOwnerUnlock={(token) => {
+                // Owner has authenticated — mark as owner and persist the probe result
+                setIsOwner(true)
+                // Store session token for owner trades (passed back from verify-owner)
+                if (typeof window !== 'undefined') {
+                  import('@/lib/session').then(({ setSessionToken }) => setSessionToken(token))
+                }
+              }}
             />
           </div>
         )}

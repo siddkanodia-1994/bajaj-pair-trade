@@ -11,6 +11,22 @@ export async function PATCH(
   const id = parseInt(rawId, 10)
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
+  const sessionToken = req.headers.get('X-Session-Token') ?? ''
+
+  const db = createServerClient()
+
+  // Verify ownership
+  const { data: existing, error: fetchError } = await db
+    .from('active_trades')
+    .select('session_token')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (existing.session_token !== sessionToken) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const body = await req.json() as {
     exit_date: string
     exit_spread: number
@@ -18,7 +34,6 @@ export async function PATCH(
     exit_reason: 'target' | 'time_stop' | 'hard_stop' | 'manual'
   }
 
-  const db = createServerClient()
   const { data, error } = await db
     .from('active_trades')
     .update({
@@ -37,14 +52,29 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: rawId } = await params
   const id = parseInt(rawId, 10)
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
+  const sessionToken = req.headers.get('X-Session-Token') ?? ''
+
   const db = createServerClient()
+
+  // Verify ownership
+  const { data: existing, error: fetchError } = await db
+    .from('active_trades')
+    .select('session_token')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (existing.session_token !== sessionToken) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { error } = await db.from('active_trades').delete().eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

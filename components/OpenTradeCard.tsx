@@ -12,6 +12,7 @@ interface Props {
   saving: boolean
   onCloseTranche: (id: number, reason: 'target' | 'time_stop' | 'hard_stop' | 'manual') => void
   onDeleteTranche: (id: number) => void
+  readOnly?: boolean
 }
 
 const TIME_STOP_DAYS = 60
@@ -33,7 +34,7 @@ const EXIT_REASONS: { value: 'target' | 'time_stop' | 'hard_stop' | 'manual'; la
 
 export default function OpenTradeCard({
   openTranches, liveSpreadPct, currentZ, rules, saving,
-  onCloseTranche, onDeleteTranche,
+  onCloseTranche, onDeleteTranche, readOnly = false,
 }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
@@ -144,43 +145,45 @@ export default function OpenTradeCard({
                     <span className="text-xs text-slate-400">Z: {fmt(t.entry_z)}</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}
-                    className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 hover:border-slate-400 px-2 py-1 rounded transition-colors"
-                  >
-                    Mark Exited ▾
-                  </button>
-                  {pendingDeleteId === t.id ? (
-                    <>
-                      <button
-                        onClick={() => { onDeleteTranche(t.id); setPendingDeleteId(null) }}
-                        disabled={saving}
-                        className="text-xs text-red-400 hover:text-red-300 border border-red-700 px-2 py-1 rounded transition-colors"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setPendingDeleteId(null)}
-                        className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 px-2 py-1 rounded transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
+                {!readOnly && (
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => setPendingDeleteId(t.id)}
-                      className="text-xs text-slate-500 hover:text-red-400 transition-colors"
-                      title="Delete tranche"
+                      onClick={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                      className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 hover:border-slate-400 px-2 py-1 rounded transition-colors"
                     >
-                      ✕
+                      Mark Exited ▾
                     </button>
-                  )}
-                </div>
+                    {pendingDeleteId === t.id ? (
+                      <>
+                        <button
+                          onClick={() => { onDeleteTranche(t.id); setPendingDeleteId(null) }}
+                          disabled={saving}
+                          className="text-xs text-red-400 hover:text-red-300 border border-red-700 px-2 py-1 rounded transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setPendingDeleteId(null)}
+                          className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 px-2 py-1 rounded transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setPendingDeleteId(t.id)}
+                        className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                        title="Delete tranche"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Exit reason picker (expanded) */}
-              {expandedId === t.id && (
+              {!readOnly && expandedId === t.id && (
                 <div className="mt-3 pt-3 border-t border-slate-700/50">
                   <div className="text-xs text-slate-500 mb-2">
                     Exit at live spread <span className="text-white">{liveSpreadPct != null ? `${liveSpreadPct.toFixed(2)}%` : '—'}</span>

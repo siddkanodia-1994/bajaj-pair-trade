@@ -13,6 +13,13 @@ export async function GET() {
 
 // Body: Array<{ rule_key: string; rule_value: number }>
 export async function PATCH(req: Request) {
+  // Only the owner (identified by HttpOnly cookie) may write rules to the DB
+  const cookieHeader = (req as import('next/server').NextRequest).cookies?.get?.('bajaj_owner')
+  const isOwner = cookieHeader?.value === '1'
+  if (!isOwner) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const body = await req.json() as { rule_key: string; rule_value: number }[]
     const db = createServerClient()

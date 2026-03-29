@@ -6,6 +6,7 @@ import type { TradeTranche } from '@/types'
 interface Props {
   closedTranches: TradeTranche[]
   onDelete: (id: number) => void
+  readOnly?: boolean
 }
 
 function fmt(n: number, d = 2) {
@@ -22,7 +23,7 @@ function calDays(a: string, b: string | null) {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000)
 }
 
-export default function TradeHistoryTable({ closedTranches, onDelete }: Props) {
+export default function TradeHistoryTable({ closedTranches, onDelete, readOnly = false }: Props) {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
   const sorted = [...closedTranches].sort((a, b) =>
@@ -54,7 +55,7 @@ export default function TradeHistoryTable({ closedTranches, onDelete }: Props) {
               <th className="text-right pb-2">Return</th>
               <th className="text-right pb-2">Days</th>
               <th className="text-right pb-2">Reason</th>
-              <th className="pb-2" />
+              {!readOnly && <th className="pb-2" />}
             </tr>
           </thead>
           <tbody>
@@ -97,32 +98,34 @@ export default function TradeHistoryTable({ closedTranches, onDelete }: Props) {
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="py-2 pl-3 text-right">
-                    {pendingDeleteId === t.id ? (
-                      <span className="inline-flex items-center gap-1">
+                  {!readOnly && (
+                    <td className="py-2 pl-3 text-right">
+                      {pendingDeleteId === t.id ? (
+                        <span className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => { onDelete(t.id); setPendingDeleteId(null) }}
+                            className="text-xs text-red-400 hover:text-red-300 border border-red-700 px-1.5 py-0.5 rounded transition-colors"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => setPendingDeleteId(null)}
+                            className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 px-1.5 py-0.5 rounded transition-colors"
+                          >
+                            No
+                          </button>
+                        </span>
+                      ) : (
                         <button
-                          onClick={() => { onDelete(t.id); setPendingDeleteId(null) }}
-                          className="text-xs text-red-400 hover:text-red-300 border border-red-700 px-1.5 py-0.5 rounded transition-colors"
+                          onClick={() => setPendingDeleteId(t.id)}
+                          className="text-slate-600 hover:text-red-400 transition-colors text-xs"
+                          title="Delete this record"
                         >
-                          Yes
+                          ✕
                         </button>
-                        <button
-                          onClick={() => setPendingDeleteId(null)}
-                          className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 px-1.5 py-0.5 rounded transition-colors"
-                        >
-                          No
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => setPendingDeleteId(t.id)}
-                        className="text-slate-600 hover:text-red-400 transition-colors text-xs"
-                        title="Delete this record"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </td>
+                      )}
+                    </td>
+                  )}
                 </tr>
               )
             })}

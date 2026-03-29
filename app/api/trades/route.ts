@@ -3,17 +3,41 @@ import { supabase, createServerClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-  const { data, error } = await supabase
+export async function GET(req: NextRequest) {
+  const sessionToken = req.headers.get('X-Session-Token') ?? ''
+  const isOwner = req.cookies.get('bajaj_owner')?.value === '1'
+  const ownerToken = process.env.OWNER_SESSION_TOKEN ?? 'owner'
+
+  // Visitor trades (filtered by their session token)
+  const { data: myTrades, error } = await supabase
     .from('active_trades')
     .select('*')
+    .eq('session_token', sessionToken || '__none__')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ trades: data ?? [] })
+
+  // If owner cookie is present, also return owner trades separately
+  if (isOwner) {
+    const { data: ownerTrades, error: ownerError } = await supabase
+      .from('active_trades')
+      .select('*')
+      .eq('session_token', ownerToken)
+      .order('created_at', { ascending: false })
+
+    if (ownerError) return NextResponse.json({ error: ownerError.message }, { status: 500 })
+    return NextResponse.json({ trades: myTrades ?? [], ownerTrades: ownerTrades ?? [] })
+  }
+
+  return NextResponse.json({ trades: myTrades ?? [] })
 }
 
 export async function POST(req: NextRequest) {
+  const sessionToken = req.headers.get('X-Session-Token') ?? ''
+  if (!sessionToken) {
+    return NextResponse.json({ error: 'X-Session-Token header required' }, { status: 400 })
+  }
+
   const body = await req.json() as {
     trade_group: string
     tranche_num: number
@@ -45,6 +69,7 @@ export async function POST(req: NextRequest) {
       entry_z: entry_z ?? null,
       size_label: size_label ?? '50%',
       status: 'open',
+      session_token: sessionToken,
       notes: notes ?? null,
     })
     .select()
