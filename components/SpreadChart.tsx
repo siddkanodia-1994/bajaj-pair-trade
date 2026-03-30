@@ -150,7 +150,10 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
   const xAxisInterval = Math.max(0, Math.floor(thinned.length / 8) - 1)
 
   return (
-    <div className={`rounded-xl border p-5 ${lightMode ? 'border-gray-200 bg-white' : 'border-slate-700 bg-slate-800/50'}`}>
+    <div
+      className={`rounded-xl border p-5 ${lightMode ? 'border-gray-200' : 'border-slate-700 bg-slate-800/50'}`}
+      style={lightMode ? { backgroundColor: '#ffffff' } : undefined}
+    >
       {/* Window selector */}
       <div className="flex items-center justify-between mb-4">
         <h2 className={`text-sm font-semibold uppercase tracking-wider ${lightMode ? 'text-slate-700' : 'text-slate-300'}`}>
