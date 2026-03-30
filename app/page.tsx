@@ -30,7 +30,7 @@ export default async function Page() {
     fetchShareHistory(),
   ])
 
-  const spreadSeries = computeSpreadSeries(prices, stakes ?? [])
+  const spreadSeries = computeSpreadSeries(prices, stakes ?? [], shareHistory)
 
   let initialLiveData: LiveSpreadData | null = null
   try {

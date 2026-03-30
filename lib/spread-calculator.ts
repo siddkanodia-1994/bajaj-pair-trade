@@ -1,6 +1,7 @@
 import type {
   EodPriceRow,
   StakeHistoryRow,
+  ShareHistoryRow,
   SpreadPoint,
   WindowKey,
   WindowStats,
@@ -53,6 +54,25 @@ export function getApplicableStake(
 
   // 3. Ultimate fallback: oldest known stake
   return sorted[sorted.length - 1]?.stake_pct ?? 52
+}
+
+// ---------- Share lookup ----------
+
+const MCAP_FROM_SHARES_CUTOFF = '2026-03-27'
+
+/**
+ * Returns the applicable share count (absolute) for a company on a given date.
+ * Picks the most recent share_history entry on or before the date.
+ */
+function getApplicableShareCount(
+  date: string,
+  shareHistory: ShareHistoryRow[],
+  company: string
+): number | null {
+  const applicable = [...shareHistory]
+    .filter((s) => s.company === company && s.effective_date <= date)
+    .sort((a, b) => b.effective_date.localeCompare(a.effective_date))[0]
+  return applicable?.shares ?? null
 }
 
 // ---------- Rolling statistics ----------
@@ -158,7 +178,8 @@ export function rollingWindowStats(values: number[], windowSize: number): Window
 
 export function computeSpreadSeries(
   prices: EodPriceRow[],
-  stakes: StakeHistoryRow[]
+  stakes: StakeHistoryRow[],
+  shareHistory: ShareHistoryRow[] = []
 ): SpreadPoint[] {
   if (prices.length === 0) return []
 
@@ -167,18 +188,30 @@ export function computeSpreadSeries(
   // 1. Compute raw spread % for each date
   const rawPoints = sorted.map((row) => {
     const stake = getApplicableStake(row.date, stakes) / 100
-    const underlying_stake_value = stake * row.fin_mcap
-    const residual_value = row.finsv_mcap - underlying_stake_value
+
+    // From cutoff onwards: MCap = closing price × applicable shares (more accurate)
+    // Before cutoff: use stored Yahoo Finance MCap
+    let fin_mcap = row.fin_mcap
+    let finsv_mcap = row.finsv_mcap
+    if (row.date >= MCAP_FROM_SHARES_CUTOFF && shareHistory.length > 0) {
+      const finShares = getApplicableShareCount(row.date, shareHistory, 'BAJFINANCE')
+      const finsvShares = getApplicableShareCount(row.date, shareHistory, 'BAJAJFINSV')
+      if (finShares != null && row.fin_price > 0) fin_mcap = (row.fin_price * finShares) / 1e7
+      if (finsvShares != null && row.finsv_price > 0) finsv_mcap = (row.finsv_price * finsvShares) / 1e7
+    }
+
+    const underlying_stake_value = stake * fin_mcap
+    const residual_value = finsv_mcap - underlying_stake_value
     const spread_pct =
-      row.finsv_mcap > 0 ? (residual_value / row.finsv_mcap) * 100 : 0
+      finsv_mcap > 0 ? (residual_value / finsv_mcap) * 100 : 0
     return {
       date: row.date,
       stake_pct: stake * 100,
       underlying_stake_value,
       residual_value,
       spread_pct,
-      finsv_mcap: row.finsv_mcap,
-      fin_mcap: row.fin_mcap,
+      finsv_mcap,
+      fin_mcap,
       finsv_price: row.finsv_price,
       fin_price: row.fin_price,
     }
