@@ -33,7 +33,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const sessionToken = req.headers.get('X-Session-Token') ?? ''
+  const isOwner = req.cookies.get('bajaj_owner')?.value === '1'
+  const ownerToken = process.env.OWNER_SESSION_TOKEN ?? 'owner'
+  // If owner cookie is present, always write trades under the owner session token
+  const sessionToken = isOwner ? ownerToken : (req.headers.get('X-Session-Token') ?? '')
   if (!sessionToken) {
     return NextResponse.json({ error: 'X-Session-Token header required' }, { status: 400 })
   }

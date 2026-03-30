@@ -11,6 +11,8 @@ export async function PATCH(
   const id = parseInt(rawId, 10)
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
+  const isOwner = req.cookies.get('bajaj_owner')?.value === '1'
+  const ownerToken = process.env.OWNER_SESSION_TOKEN ?? 'owner'
   const sessionToken = req.headers.get('X-Session-Token') ?? ''
 
   const db = createServerClient()
@@ -23,7 +25,9 @@ export async function PATCH(
     .single()
 
   if (fetchError || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (existing.session_token !== sessionToken) {
+  const canModify = existing.session_token === sessionToken ||
+    (isOwner && existing.session_token === ownerToken)
+  if (!canModify) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -59,6 +63,8 @@ export async function DELETE(
   const id = parseInt(rawId, 10)
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
+  const isOwner = req.cookies.get('bajaj_owner')?.value === '1'
+  const ownerToken = process.env.OWNER_SESSION_TOKEN ?? 'owner'
   const sessionToken = req.headers.get('X-Session-Token') ?? ''
 
   const db = createServerClient()
@@ -71,7 +77,9 @@ export async function DELETE(
     .single()
 
   if (fetchError || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (existing.session_token !== sessionToken) {
+  const canModify = existing.session_token === sessionToken ||
+    (isOwner && existing.session_token === ownerToken)
+  if (!canModify) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -34,6 +34,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
   const [ownerLoading, setOwnerLoading] = useState(false)
 
   const [saving, setSaving] = useState(false)
+  const [ownerSaving, setOwnerSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const sessionToken = typeof window !== 'undefined' ? getSessionToken() : ''
@@ -86,6 +87,8 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
 
   const myOpen = useMemo(() => myTranches.filter((t) => t.status === 'open'), [myTranches])
   const myClosed = useMemo(() => myTranches.filter((t) => t.status === 'closed'), [myTranches])
+  const ownerOpen = useMemo(() => ownerTranches.filter((t) => t.status === 'open'), [ownerTranches])
+  const ownerClosed = useMemo(() => ownerTranches.filter((t) => t.status === 'closed'), [ownerTranches])
 
   const mySignal = useMemo(
     () => evaluateTradeSignal(currentZscore, myOpen, rules),
@@ -254,6 +257,136 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     }
   }
 
+  // ── Owner trade handlers (only used when isOwner === true) ───────────────
+
+  async function handleOwnerEnter(ov?: { spread: number; z: number | null; date: string; sizeLabel?: string }) {
+    setOwnerSaving(true)
+    setError(null)
+    const today = ov?.date ?? new Date().toISOString().split('T')[0]
+    const spread = ov?.spread ?? liveSpreadPct ?? series[series.length - 1]?.spread_pct ?? 0
+    const z = ov !== undefined ? ov.z : currentZscore
+    const tradeGroup = crypto.randomUUID()
+    try {
+      const res = await fetch('/api/trades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': getSessionToken(),
+        },
+        body: JSON.stringify({
+          trade_group: tradeGroup,
+          tranche_num: 1,
+          direction: (z ?? currentZscore) != null && ((z ?? currentZscore)! <= 0) ? 'long' : 'short',
+          window_key: selectedWindow,
+          entry_date: today,
+          entry_spread: spread,
+          entry_z: z,
+          size_label: ov?.sizeLabel ?? '50%',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to save')
+      setOwnerTranches((prev) => [data.trade, ...prev])
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setOwnerSaving(false)
+    }
+  }
+
+  async function handleOwnerAdd(ov?: { spread: number; z: number | null; date: string; sizeLabel?: string }) {
+    setOwnerSaving(true)
+    setError(null)
+    if (ownerOpen.length === 0 || ownerOpen.length >= 5) { setOwnerSaving(false); return }
+    const today = ov?.date ?? new Date().toISOString().split('T')[0]
+    const spread = ov?.spread ?? liveSpreadPct ?? series[series.length - 1]?.spread_pct ?? 0
+    const z = ov !== undefined ? ov.z : currentZscore
+    const oldest = [...ownerOpen].sort((a, b) => a.entry_date.localeCompare(b.entry_date))[0]
+    const nextTranche = ownerOpen.length + 1
+    const sizeLabel = ov?.sizeLabel ?? TRANCHE_SIZES[nextTranche - 1] ?? '20%'
+    try {
+      const res = await fetch('/api/trades', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': getSessionToken(),
+        },
+        body: JSON.stringify({
+          trade_group: oldest.trade_group,
+          tranche_num: nextTranche,
+          direction: oldest.direction,
+          window_key: selectedWindow,
+          entry_date: today,
+          entry_spread: spread,
+          entry_z: z,
+          size_label: sizeLabel,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to save')
+      setOwnerTranches((prev) => [data.trade, ...prev])
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setOwnerSaving(false)
+    }
+  }
+
+  async function handleOwnerCloseTranche(id: number, reason: 'target' | 'time_stop' | 'hard_stop' | 'manual') {
+    setOwnerSaving(true)
+    setError(null)
+    const today = new Date().toISOString().split('T')[0]
+    const spread = liveSpreadPct ?? series[series.length - 1]?.spread_pct ?? 0
+    try {
+      const res = await fetch(`/api/trades/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': getSessionToken(),
+        },
+        body: JSON.stringify({
+          exit_date: today,
+          exit_spread: spread,
+          exit_z: currentZscore,
+          exit_reason: reason,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to update')
+      setOwnerTranches((prev) => prev.map((t) => (t.id === id ? data.trade : t)))
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setOwnerSaving(false)
+    }
+  }
+
+  async function handleOwnerExitAll(reason: 'target' | 'time_stop' | 'hard_stop' | 'manual') {
+    for (const t of ownerOpen) {
+      await handleOwnerCloseTranche(t.id, reason)
+    }
+  }
+
+  async function handleOwnerDeleteTranche(id: number) {
+    setOwnerSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/trades/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-Session-Token': getSessionToken() },
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to delete')
+      }
+      setOwnerTranches((prev) => prev.filter((t) => t.id !== id))
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setOwnerSaving(false)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (loadingMy) {
@@ -269,13 +402,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     )
   }
 
-  const ownerOpen = ownerTranches.filter((t) => t.status === 'open')
-  const ownerClosed = ownerTranches.filter((t) => t.status === 'closed')
   const ownerSignal = evaluateTradeSignal(currentZscore, ownerOpen, rules)
-
-  // If user IS the owner (session token matches owner token), show unified view — no split needed
-  const sessionIsOwner = typeof window !== 'undefined' &&
-    localStorage.getItem('bajaj_session') === (process.env.NEXT_PUBLIC_OWNER_SESSION_TOKEN ?? 'owner')
 
   return (
     <div className="space-y-8">
@@ -292,11 +419,17 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
           <div>
             <div className="text-sm font-semibold text-slate-200">Owner Portfolio</div>
             <div className="text-xs text-slate-500 mt-0.5">
-              {ownerUnlocked ? 'Live view — read only' : 'Password protected · Enter password to view'}
+              {isOwner && ownerUnlocked
+                ? 'Your portfolio — editable'
+                : ownerUnlocked
+                ? 'Live view — read only'
+                : 'Password protected · Enter password to view'}
             </div>
           </div>
           {ownerUnlocked && (
-            <span className="text-xs text-green-400 border border-green-700/50 px-2 py-0.5 rounded-full">Unlocked</span>
+            <span className={`text-xs border px-2 py-0.5 rounded-full ${isOwner ? 'text-blue-400 border-blue-700/50' : 'text-green-400 border-green-700/50'}`}>
+              {isOwner ? 'Owner' : 'Unlocked'}
+            </span>
           )}
         </div>
 
@@ -325,7 +458,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
           </div>
         ) : (
           <div className="px-5 py-5 space-y-5">
-            {/* Owner signal (read-only) */}
+            {/* Owner signal */}
             <div>
               <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Signal</div>
               <TradeSignalCard
@@ -335,11 +468,11 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
                 selectedWindow={selectedWindow}
                 openTranches={ownerOpen}
                 series={series}
-                onEnter={() => {}}
-                onAdd={() => {}}
-                onExitAll={() => {}}
-                saving={true}
-                readOnly
+                onEnter={isOwner ? handleOwnerEnter : () => {}}
+                onAdd={isOwner ? handleOwnerAdd : () => {}}
+                onExitAll={isOwner ? handleOwnerExitAll : () => {}}
+                saving={isOwner ? ownerSaving : true}
+                readOnly={!isOwner}
               />
             </div>
 
@@ -349,10 +482,10 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
                 liveSpreadPct={liveSpreadPct ?? null}
                 currentZ={currentZscore}
                 rules={rules}
-                saving={true}
-                onCloseTranche={() => {}}
-                onDeleteTranche={() => {}}
-                readOnly
+                saving={isOwner ? ownerSaving : true}
+                onCloseTranche={isOwner ? handleOwnerCloseTranche : () => {}}
+                onDeleteTranche={isOwner ? handleOwnerDeleteTranche : () => {}}
+                readOnly={!isOwner}
               />
             )}
 
@@ -361,7 +494,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
             )}
 
             {ownerClosed.length > 0 && (
-              <TradeHistoryTable closedTranches={ownerClosed} onDelete={() => {}} readOnly />
+              <TradeHistoryTable closedTranches={ownerClosed} onDelete={isOwner ? handleOwnerDeleteTranche : () => {}} readOnly={!isOwner} />
             )}
           </div>
         )}
