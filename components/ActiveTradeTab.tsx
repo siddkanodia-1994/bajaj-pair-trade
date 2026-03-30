@@ -334,6 +334,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
                 liveSpreadPct={liveSpreadPct ?? null}
                 selectedWindow={selectedWindow}
                 openTranches={ownerOpen}
+                series={series}
                 onEnter={() => {}}
                 onAdd={() => {}}
                 onExitAll={() => {}}
@@ -381,6 +382,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
           liveSpreadPct={liveSpreadPct ?? null}
           selectedWindow={selectedWindow}
           openTranches={myOpen}
+          series={series}
           onEnter={handleEnter}
           onAdd={handleAdd}
           onExitAll={handleExitAll}

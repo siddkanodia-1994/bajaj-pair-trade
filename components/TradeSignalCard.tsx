@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import type { TradeSignal, TradeTranche } from '@/types'
+import { useState, useEffect } from 'react'
+import type { TradeSignal, TradeTranche, SpreadPoint, WindowKey } from '@/types'
+import { WINDOW_KEYS, WINDOW_MONTHS } from '@/types'
 import { getBlendedEntry, getDaysHeld } from '@/lib/trade-signals'
+import { subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator'
 
-type Overrides = { spread: number; z: number | null; date: string; sizeLabel?: string }
+type Overrides = { spread: number; z: number | null; date: string; sizeLabel?: string; window?: string }
 
 interface Props {
   signal: TradeSignal
@@ -12,6 +14,7 @@ interface Props {
   liveSpreadPct: number | null
   selectedWindow: string
   openTranches: TradeTranche[]
+  series: SpreadPoint[]
   onEnter: (ov?: Overrides) => void
   onAdd: (ov?: Overrides) => void
   onExitAll: (reason: 'target' | 'time_stop' | 'hard_stop' | 'manual') => void
@@ -30,23 +33,53 @@ const EXIT_REASONS: { value: 'target' | 'time_stop' | 'hard_stop' | 'manual'; la
   { value: 'manual',    label: 'Manual Exit' },
 ]
 
+type NonAllWindow = Exclude<WindowKey, 'ALL'>
+const WINDOW_OPTIONS = WINDOW_KEYS.filter((w): w is NonAllWindow => w !== 'ALL')
+
+/** Compute Z-score for a given spread value against the selected window's distribution */
+function computeZForSpread(series: SpreadPoint[], spread: number, window: WindowKey): number | null {
+  if (series.length === 0) return null
+  const last = series[series.length - 1]
+  const months = WINDOW_MONTHS[window]
+  const values = months != null
+    ? series.filter((p) => p.date >= subtractMonths(last.date, months)).map((p) => p.spread_pct)
+    : series.map((p) => p.spread_pct)
+  if (values.length < 10) return null
+  const stats = computeFixedWindowStats(values, spread)
+  return stats.zscore
+}
+
 export default function TradeSignalCard({
   signal, currentZ, liveSpreadPct, selectedWindow,
-  openTranches, onEnter, onAdd, onExitAll, saving, readOnly = false,
+  openTranches, series, onEnter, onAdd, onExitAll, saving, readOnly = false,
 }: Props) {
   const [manualOpen, setManualOpen] = useState(false)
   const [manualSpread, setManualSpread] = useState('')
   const [manualZ, setManualZ] = useState('')
   const [manualDate, setManualDate] = useState('')
   const [manualSize, setManualSize] = useState('50%')
+  const [manualWindow, setManualWindow] = useState<NonAllWindow>(
+    (WINDOW_OPTIONS as string[]).includes(selectedWindow) ? selectedWindow as NonAllWindow : '2Y'
+  )
 
   const todayISO = new Date().toISOString().split('T')[0]
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
+  // Auto-compute Z-score whenever spread or window changes
+  useEffect(() => {
+    const spread = parseFloat(manualSpread)
+    if (!isNaN(spread) && manualSpread !== '') {
+      const z = computeZForSpread(series, spread, manualWindow)
+      setManualZ(z != null ? z.toFixed(2) : '')
+    }
+  }, [manualSpread, manualWindow, series])
+
   function openManual() {
     setManualSpread(liveSpreadPct != null ? liveSpreadPct.toFixed(2) : '')
-    setManualZ(currentZ != null ? currentZ.toFixed(2) : '')
     setManualDate(todayISO)
+    setManualWindow(
+      (WINDOW_OPTIONS as string[]).includes(selectedWindow) ? selectedWindow as NonAllWindow : '2Y'
+    )
     setManualOpen(true)
   }
 
@@ -55,10 +88,11 @@ export default function TradeSignalCard({
     const z = manualZ !== '' ? parseFloat(manualZ) : null
     const date = manualDate || todayISO
     if (isNaN(spread)) return
-    const ov = { spread, z: isNaN(z as number) ? null : z, date, sizeLabel: manualSize }
+    const ov = { spread, z: isNaN(z as number) ? null : z, date, sizeLabel: manualSize, window: manualWindow }
     openTranches.length === 0 ? onEnter(ov) : onAdd(ov)
     setManualOpen(false)
   }
+
   const spreadStr = liveSpreadPct != null ? `${liveSpreadPct.toFixed(2)}%` : '—'
   const zStr = currentZ != null ? fmt(currentZ) : '—'
 
@@ -204,13 +238,13 @@ export default function TradeSignalCard({
                   />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className="text-xs text-slate-500">Z-Score</span>
+                  <span className="text-xs text-slate-500">Z-Score <span className="text-slate-600">(auto)</span></span>
                   <input
                     type="number"
                     step="0.01"
                     value={manualZ}
                     onChange={(e) => setManualZ(e.target.value)}
-                    placeholder="optional"
+                    placeholder="auto"
                     className="w-28 text-sm bg-slate-700 border border-slate-500 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 placeholder:text-slate-600"
                   />
                 </label>
@@ -237,9 +271,15 @@ export default function TradeSignalCard({
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-xs text-slate-500">Window</span>
-                  <div className="text-sm bg-slate-800 border border-slate-700 text-slate-400 rounded px-2 py-1.5 w-20">
-                    {selectedWindow}
-                  </div>
+                  <select
+                    value={manualWindow}
+                    onChange={(e) => setManualWindow(e.target.value as NonAllWindow)}
+                    className="text-sm bg-slate-700 border border-slate-500 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 w-20"
+                  >
+                    {WINDOW_OPTIONS.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <div className="flex gap-2 items-center">
