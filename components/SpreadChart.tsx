@@ -176,6 +176,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
         </div>
       </div>
 
+      <div style={lightMode ? { border: '1px solid #6C584C' } : undefined}>
       <ResponsiveContainer width="100%" height={340}>
         <ComposedChart data={thinned} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
@@ -242,6 +243,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           )}
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
 
       {/* Legend */}
       <div className={`flex gap-4 mt-2 text-xs justify-end ${lightMode ? 'text-slate-600' : 'text-slate-500'}`}>
