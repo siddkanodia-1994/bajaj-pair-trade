@@ -67,6 +67,7 @@ export default function DailySpreadTable({ spreadSeries, stakes, shareHistory, r
 
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>(externalWindow ?? '1Y')
   useEffect(() => { if (externalWindow) setSelectedWindow(externalWindow) }, [externalWindow])
+  const [showPriceShares, setShowPriceShares] = useState(false)
   const [page, setPage] = useState(0)
   const [sortDesc, setSortDesc] = useState(true)
 
@@ -312,6 +313,18 @@ export default function DailySpreadTable({ spreadSeries, stakes, shareHistory, r
           Date {sortDesc ? '↓ Newest first' : '↑ Oldest first'}
         </button>
 
+        {/* Price & Shares toggle */}
+        <button
+          onClick={() => setShowPriceShares(v => !v)}
+          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+            showPriceShares
+              ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+              : 'border-slate-600 bg-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {showPriceShares ? '▾ Hide Price & Shares' : '▸ Show Price & Shares'}
+        </button>
+
         <div className="ml-auto text-xs text-slate-500">
           {displayRows.length.toLocaleString()} rows · Page {page + 1}/{totalPages}
         </div>
@@ -327,12 +340,12 @@ export default function DailySpreadTable({ spreadSeries, stakes, shareHistory, r
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">% Spread</th>
               <th className="px-3 py-2.5 text-right text-purple-400 font-medium whitespace-nowrap">Z-Score ({selectedWindow})</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Discount (₹ Cr)</th>
-              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FIN Price (₹)</th>
-              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FIN Shares (Cr)</th>
+              {showPriceShares && <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FIN Price (₹)</th>}
+              {showPriceShares && <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FIN Shares (Cr)</th>}
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">MC Finance (₹ Cr)</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Stake Value (₹ Cr)</th>
-              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FINSV Price (₹)</th>
-              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FINSV Shares (Cr)</th>
+              {showPriceShares && <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FINSV Price (₹)</th>}
+              {showPriceShares && <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FINSV Shares (Cr)</th>}
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">MC Finserv (₹ Cr)</th>
               <th className="px-3 py-2.5 text-right text-blue-400 font-medium whitespace-nowrap">Mean ({selectedWindow})</th>
               <th className="px-3 py-2.5 text-right text-red-400 font-medium whitespace-nowrap">+2σ</th>
@@ -370,24 +383,32 @@ export default function DailySpreadTable({ spreadSeries, stakes, shareHistory, r
                   <td className={`px-3 py-2 text-right font-mono ${discountColor}`}>
                     {formatCr(row.residual_value)}
                   </td>
-                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
-                    {row.fin_price > 0 ? row.fin_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
-                    {(() => { const s = getApplicableShares(row.date, shareHistory, 'BAJFINANCE'); return s != null ? (s / 1e7).toFixed(2) : '—' })()}
-                  </td>
+                  {showPriceShares && (
+                    <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                      {row.fin_price > 0 ? row.fin_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                    </td>
+                  )}
+                  {showPriceShares && (
+                    <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                      {(() => { const s = getApplicableShares(row.date, shareHistory, 'BAJFINANCE'); return s != null ? (s / 1e7).toFixed(2) : '—' })()}
+                    </td>
+                  )}
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.fin_mcap)}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.underlying_stake_value)}
                   </td>
-                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
-                    {row.finsv_price > 0 ? row.finsv_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
-                    {(() => { const s = getApplicableShares(row.date, shareHistory, 'BAJAJFINSV'); return s != null ? (s / 1e7).toFixed(2) : '—' })()}
-                  </td>
+                  {showPriceShares && (
+                    <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                      {row.finsv_price > 0 ? row.finsv_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                    </td>
+                  )}
+                  {showPriceShares && (
+                    <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                      {(() => { const s = getApplicableShares(row.date, shareHistory, 'BAJAJFINSV'); return s != null ? (s / 1e7).toFixed(2) : '—' })()}
+                    </td>
+                  )}
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.finsv_mcap)}
                   </td>
