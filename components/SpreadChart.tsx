@@ -2,7 +2,6 @@
 
 import {
   ComposedChart,
-  Area,
   Line,
   XAxis,
   YAxis,
@@ -64,31 +63,15 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode, lightMode }: Props) {
   const chartColors = lightMode ? {
-    grid:       '#6C584C',
-    axisTick:   '#5A4438',
-    axisLine:   '#7B6456',
-    label:      '#5A4438',
-    band2Fill:  '#ef444438',
-    band2FillL: '#22c55e38',
-    band1Fill:  '#ef444450',
-    band1FillL: '#22c55e50',
-    line1:      '#ef4444aa',
-    line1L:     '#22c55eaa',
-    line2:      '#ef444470',
-    line2L:     '#22c55e70',
+    grid:     '#6C584C',
+    axisTick: '#5A4438',
+    axisLine: '#7B6456',
+    label:    '#5A4438',
   } : {
-    grid:       '#1e293b',
-    axisTick:   '#64748b',
-    axisLine:   '#334155',
-    label:      '#64748b',
-    band2Fill:  '#ef444415',
-    band2FillL: '#22c55e15',
-    band1Fill:  '#ef444420',
-    band1FillL: '#22c55e20',
-    line1:      '#ef444440',
-    line1L:     '#22c55e40',
-    line2:      '#ef444425',
-    line2L:     '#22c55e25',
+    grid:     '#1e293b',
+    axisTick: '#64748b',
+    axisLine: '#334155',
+    label:    '#64748b',
   }
   // Calendar-anchored slice
   let visibleSeries: SpreadPoint[]
@@ -211,31 +194,14 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
           />
           <Tooltip content={<CustomTooltip />} />
 
-          {/* ±2SD band — no data override so x-axis stays consistent */}
-          <Area dataKey="upper2" stroke="none" fill={chartColors.band2Fill} legendType="none" name="upper2" />
-          <Area dataKey="lower2" stroke="none" fill={chartColors.band2FillL} legendType="none" name="lower2" />
+          {/* Mean line — solid red */}
+          <Line dataKey="mean"   stroke="#ef4444" strokeWidth={1.5} dot={false} activeDot={false} name="mean"   legendType="none" />
 
-          {/* ±1SD band */}
-          <Area dataKey="upper1" stroke="none" fill={chartColors.band1Fill} legendType="none" name="upper1" />
-          <Area dataKey="lower1" stroke="none" fill={chartColors.band1FillL} legendType="none" name="lower1" />
-
-          {/* Mean line */}
-          <Line
-            dataKey="mean"
-            stroke="#94a3b8"
-            strokeWidth={1}
-            strokeDasharray="4 4"
-            dot={false}
-            activeDot={false}
-            name="mean"
-            legendType="none"
-          />
-
-          {/* SD boundary lines */}
-          <Line dataKey="upper1" stroke={chartColors.line1} strokeWidth={1} dot={false} activeDot={false} name="upper1Line" legendType="none" />
-          <Line dataKey="lower1" stroke={chartColors.line1L} strokeWidth={1} dot={false} activeDot={false} name="lower1Line" legendType="none" />
-          <Line dataKey="upper2" stroke={chartColors.line2} strokeWidth={1} dot={false} activeDot={false} name="upper2Line" legendType="none" />
-          <Line dataKey="lower2" stroke={chartColors.line2L} strokeWidth={1} dot={false} activeDot={false} name="lower2Line" legendType="none" />
+          {/* SD lines — fixed colors regardless of light/dark */}
+          <Line dataKey="upper2" stroke="#22c55e" strokeWidth={1.5} dot={false} activeDot={false} name="upper2" legendType="none" />
+          <Line dataKey="upper1" stroke="#eab308" strokeWidth={1.5} dot={false} activeDot={false} name="upper1" legendType="none" />
+          <Line dataKey="lower1" stroke="#f97316" strokeWidth={1.5} dot={false} activeDot={false} name="lower1" legendType="none" />
+          <Line dataKey="lower2" stroke="#06b6d4" strokeWidth={1.5} dot={false} activeDot={false} name="lower2" legendType="none" />
 
           {/* Spread line */}
           <Line
@@ -277,9 +243,11 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
       {/* Legend */}
       <div className="flex gap-4 mt-2 text-xs text-slate-500 justify-end">
         <span className="flex items-center gap-1"><span className="w-4 h-px bg-blue-500 inline-block" /> Spread</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-px bg-slate-500 border-dashed border-t inline-block" /> Mean</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500/20 inline-block" /> +1/2SD</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500/20 inline-block" /> -1/2SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#ef4444' }} /> Mean</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#22c55e' }} /> +2SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#eab308' }} /> +1SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#f97316' }} /> −1SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#06b6d4' }} /> −2SD</span>
         {liveSpreadPct != null && (
           <span className="flex items-center gap-1"><span className="w-4 h-px bg-amber-400 border-dashed border-t inline-block" /> Live</span>
         )}
