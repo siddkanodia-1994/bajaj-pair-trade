@@ -3,7 +3,7 @@ import { computeSpreadSeries } from '@/lib/spread-calculator'
 import SpreadDashboard from '@/components/SpreadDashboard'
 import { getDhanLivePrices } from '@/lib/dhan'
 import { getApplicableStake } from '@/lib/spread-calculator'
-import { fetchLatestShares } from '@/lib/supabase'
+import { fetchLatestShares, fetchShareHistory } from '@/lib/supabase'
 import type { LiveSpreadData, LiveQuote } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -20,13 +20,14 @@ function isMarketOpen(): boolean {
 }
 
 export default async function Page() {
-  const [prices, { data: stakes }, { data: eodRows }, shares, dhanPrices, rules] = await Promise.all([
+  const [prices, { data: stakes }, { data: eodRows }, shares, dhanPrices, rules, shareHistory] = await Promise.all([
     fetchAllEodPrices(),
     supabase.from('stake_history').select('*').order('quarter_end_date', { ascending: true }),
     supabase.from('eod_prices').select('*').order('date', { ascending: false }).limit(2),
     fetchLatestShares(),
     getDhanLivePrices(),
     fetchRules(),
+    fetchShareHistory(),
   ])
 
   const spreadSeries = computeSpreadSeries(prices, stakes ?? [])
@@ -70,6 +71,7 @@ export default async function Page() {
       stakes={stakes ?? []}
       initialLiveData={initialLiveData}
       rules={rules}
+      shareHistory={shareHistory}
     />
   )
 }

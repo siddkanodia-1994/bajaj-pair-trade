@@ -1,16 +1,24 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import type { SpreadPoint, StakeHistoryRow, WindowKey, WindowStats } from '@/types'
+import type { SpreadPoint, StakeHistoryRow, ShareHistoryRow, WindowKey, WindowStats } from '@/types'
 import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
 import { calendarRollingStats, computeFixedWindowStats, subtractMonths, getApplicableStake, getQuarterEndDate } from '@/lib/spread-calculator'
 
 interface Props {
   spreadSeries: SpreadPoint[]
   stakes: StakeHistoryRow[]
+  shareHistory: ShareHistoryRow[]
   rollingMode: boolean
   onStakesChange: (updated: StakeHistoryRow[]) => void
   externalWindow?: WindowKey
+}
+
+function getApplicableShares(date: string, shareHistory: ShareHistoryRow[], company: string): number | null {
+  const applicable = [...shareHistory]
+    .filter((s) => s.company === company && s.effective_date <= date)
+    .sort((a, b) => b.effective_date.localeCompare(a.effective_date))[0]
+  return applicable?.shares ?? null
 }
 
 const PAGE_SIZE = 100
@@ -49,7 +57,7 @@ interface DisplayRow {
   zscore: number | null
 }
 
-export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, onStakesChange, externalWindow }: Props) {
+export default function DailySpreadTable({ spreadSeries, stakes, shareHistory, rollingMode, onStakesChange, externalWindow }: Props) {
   const [editValues, setEditValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(stakes.map((s) => [s.quarter_end_date, String(s.stake_pct)]))
   )
@@ -366,7 +374,7 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, on
                     {row.fin_price > 0 ? row.fin_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-400 font-mono">
-                    {row.fin_price > 0 ? (row.fin_mcap / row.fin_price).toFixed(2) : '—'}
+                    {(() => { const s = getApplicableShares(row.date, shareHistory, 'BAJFINANCE'); return s != null ? (s / 1e7).toFixed(2) : '—' })()}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.fin_mcap)}
@@ -378,7 +386,7 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, on
                     {row.finsv_price > 0 ? row.finsv_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-400 font-mono">
-                    {row.finsv_price > 0 ? (row.finsv_mcap / row.finsv_price).toFixed(2) : '—'}
+                    {(() => { const s = getApplicableShares(row.date, shareHistory, 'BAJAJFINSV'); return s != null ? (s / 1e7).toFixed(2) : '—' })()}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.finsv_mcap)}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import type { SpreadPoint, StakeHistoryRow, WindowKey, LiveSpreadData, TradingRules } from '@/types'
+import type { SpreadPoint, StakeHistoryRow, ShareHistoryRow, WindowKey, LiveSpreadData, TradingRules } from '@/types'
 import { recomputeSpreadSeries } from '@/lib/spread-calculator'
 import { getLocalRuleOverrides, clearLocalRuleOverrides, hasLocalOverrides } from '@/lib/local-rules'
 import LiveSpreadBanner from './LiveSpreadBanner'
@@ -22,9 +22,10 @@ interface Props {
   stakes: StakeHistoryRow[]
   initialLiveData: LiveSpreadData | null
   rules: TradingRules
+  shareHistory: ShareHistoryRow[]
 }
 
-export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData, rules: initialRules }: Props) {
+export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData, rules: initialRules, shareHistory }: Props) {
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('2Y')
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
@@ -316,6 +317,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
             <DailySpreadTable
               spreadSeries={activeSpreadSeries}
               stakes={currentStakes}
+              shareHistory={shareHistory}
               rollingMode={rollingMode}
               onStakesChange={setCurrentStakes}
               externalWindow={selectedWindow}
