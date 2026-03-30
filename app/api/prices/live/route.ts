@@ -7,6 +7,7 @@ import type { LiveSpreadData, LiveQuote } from '@/types'
 export const dynamic = 'force-dynamic'
 
 const CRORE = 10_000_000
+const MCAP_FROM_SHARES_CUTOFF = '2026-03-27'
 
 /** NSE market hours: 9:15 AM – 3:30 PM IST, Mon–Fri */
 function isMarketOpen(): boolean {
@@ -71,17 +72,19 @@ export async function GET() {
       const finChangePct  = eod2 && eod2.fin_price > 0   ? ((eod.fin_price   - eod2.fin_price)   / eod2.fin_price)   * 100 : 0
       const finsvChangePct = eod2 && eod2.finsv_price > 0 ? ((eod.finsv_price - eod2.finsv_price) / eod2.finsv_price) * 100 : 0
 
+      // From cutoff onwards, compute MCap as price × shares (BSE data) — same logic as spread-calculator
+      const useSharesMcap = eod.date >= MCAP_FROM_SHARES_CUTOFF && shares.fin > 0 && shares.finsv > 0
       fin = {
         ticker: 'BAJFINANCE',
         price: eod.fin_price,
-        mcap: eod.fin_mcap,
+        mcap: useSharesMcap ? (eod.fin_price * shares.fin) / CRORE : eod.fin_mcap,
         change_pct: finChangePct,
         last_updated: eod.date,
       }
       finsv = {
         ticker: 'BAJAJFINSV',
         price: eod.finsv_price,
-        mcap: eod.finsv_mcap,
+        mcap: useSharesMcap ? (eod.finsv_price * shares.finsv) / CRORE : eod.finsv_mcap,
         change_pct: finsvChangePct,
         last_updated: eod.date,
       }
