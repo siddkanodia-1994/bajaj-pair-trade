@@ -131,6 +131,7 @@ export interface TradingRules {
   time_stop_60d: number
   time_stop_90d: number
   hard_stop_z: number           // absolute Z threshold — exit if |Z| ≥ this on wrong side
+  z_override: number | null     // owner-set Z-score override for analog observations (null = use computed)
 }
 
 export const DEFAULT_RULES: TradingRules = {
@@ -148,6 +149,7 @@ export const DEFAULT_RULES: TradingRules = {
   time_stop_60d: 60,
   time_stop_90d: 90,
   hard_stop_z: 2.8,
+  z_override: null,
 }
 
 export interface ShareHistoryRow {

@@ -36,7 +36,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [isOwner, setIsOwner] = useState(false)
   const [obsFilterYear, setObsFilterYear] = useState<number | null>(2022)
   const [obsFilterMonth, setObsFilterMonth] = useState<number>(0) // Jan
-  const [zOverride, setZOverride] = useState<number | null>(null)
+  const [zOverride, setZOverride] = useState<number | null>(initialRules.z_override ?? null)
   const [dirOverride, setDirOverride] = useState<'long' | 'short' | null>(null)
 
   // Store the DB-fetched rules so we can always reset back to them
@@ -77,6 +77,24 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
       setActiveRules({ ...initialRules, ...overrides })
       setHasOverrides(true)
     }
+
+    // Poll rules every 60s so visitors pick up owner's z_override changes
+    const rulesInterval = setInterval(async () => {
+      try {
+        const r = await fetch('/api/rules')
+        if (!r.ok) return
+        const updated: TradingRules = await r.json()
+        setActiveRules(prev => {
+          // Preserve visitor's local overrides on top of fresh DB rules
+          const localOverrides = getLocalRuleOverrides()
+          return { ...updated, ...localOverrides }
+        })
+        // Sync z_override from DB (always authoritative from owner)
+        setZOverride(updated.z_override ?? null)
+      } catch { /* ignore */ }
+    }, 60_000)
+
+    return () => clearInterval(rulesInterval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleResetRules() {
@@ -264,7 +282,18 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
               filterMonth={obsFilterMonth}
               onFilterChange={(year, month) => { setObsFilterYear(year); setObsFilterMonth(month) }}
               zOverride={zOverride}
-              onZOverrideChange={(v) => { setZOverride(v); if (v == null) setDirOverride(null) }}
+              onZOverrideChange={(v) => {
+                setZOverride(v)
+                if (v == null) setDirOverride(null)
+                // Owner: persist to DB so all visitors pick it up within 60s
+                if (isOwner) {
+                  fetch('/api/rules', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([{ rule_key: 'z_override', rule_value: v ?? 999 }]),
+                  }).catch(() => {})
+                }
+              }}
               dirOverride={dirOverride}
               onDirOverrideChange={setDirOverride}
             />

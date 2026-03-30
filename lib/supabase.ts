@@ -23,10 +23,13 @@ export async function fetchRules(): Promise<TradingRules> {
     .from('trading_rules')
     .select('rule_key, rule_value')
   if (!data || data.length === 0) return { ...DEFAULT_RULES }
-  const rules = { ...DEFAULT_RULES }
+  const rules: TradingRules = { ...DEFAULT_RULES }
   for (const row of data) {
-    if (row.rule_key in rules) {
-      (rules as Record<string, number>)[row.rule_key] = Number(row.rule_value)
+    if (row.rule_key === 'z_override') {
+      // 999 is sentinel for "no override"
+      rules.z_override = Number(row.rule_value) === 999 ? null : Number(row.rule_value)
+    } else if (row.rule_key in rules) {
+      (rules as unknown as Record<string, number>)[row.rule_key] = Number(row.rule_value)
     }
   }
   return rules
