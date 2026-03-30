@@ -70,18 +70,27 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
   const lastPoint = spreadSeries[spreadSeries.length - 1]
   const windowStats = lastPoint?.windows[selectedWindow]
 
-  const liveZscore = (() => {
-    if (rollingMode) {
-      return windowStats?.mean != null && windowStats?.std != null && windowStats.std > 0
-        ? (data.spread_pct - windowStats.mean) / windowStats.std
-        : windowStats?.zscore ?? null
-    }
-    // Fixed-window: compute mean/SD over the visible window slice
+  const { liveZscore, livePercentile } = (() => {
     const lastDate = lastPoint?.date ?? ''
     const visibleValues = selectedWindow === 'ALL'
       ? spreadSeries.map((p) => p.spread_pct)
       : spreadSeries.filter((p) => p.date >= subtractMonths(lastDate, WINDOW_MONTHS[selectedWindow]!)).map((p) => p.spread_pct)
-    return computeFixedWindowStats(visibleValues, data.spread_pct).zscore
+
+    // Percentile: rank live spread against the visible window (same values array for both modes)
+    const livePercentile = visibleValues.length > 0
+      ? (visibleValues.filter((x) => x < data.spread_pct).length / visibleValues.length) * 100
+      : windowStats?.percentile_rank ?? null
+
+    if (rollingMode) {
+      const z = windowStats?.mean != null && windowStats?.std != null && windowStats.std > 0
+        ? (data.spread_pct - windowStats.mean) / windowStats.std
+        : windowStats?.zscore ?? null
+      return { liveZscore: z, livePercentile }
+    }
+
+    // Fixed-window: compute mean/SD over the visible window slice
+    const stats = computeFixedWindowStats(visibleValues, data.spread_pct)
+    return { liveZscore: stats.zscore, livePercentile }
   })()
 
   const signal = generateSignal(liveZscore, rules)
@@ -109,11 +118,11 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
               {liveZscore != null ? (liveZscore > 0 ? '+' : '') + fmt(liveZscore) : '—'}
             </div>
           </div>
-          {windowStats?.percentile_rank != null && (
+          {livePercentile != null && (
             <div>
               <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Percentile</div>
               <div className="text-3xl font-bold text-white">
-                {Math.round(windowStats.percentile_rank)}
+                {Math.round(livePercentile)}
                 <span className="text-lg text-slate-400">th</span>
               </div>
             </div>
