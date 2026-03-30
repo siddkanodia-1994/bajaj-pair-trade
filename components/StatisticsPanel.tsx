@@ -75,7 +75,7 @@ export default function StatisticsPanel({ series, selectedWindow, liveSpreadPct,
           { label: '+2 SD', value: `${fmt(ws?.upper_2sd)}%` },
           { label: '−2 SD', value: `${fmt(ws?.lower_2sd)}%` },
           { label: 'Percentile', value: ws?.percentile_rank != null ? `${Math.round(ws.percentile_rank)}th` : '—' },
-          { label: 'Data Points', value: series.filter(p => p.windows[selectedWindow]?.mean != null).length.toString() },
+          { label: 'Data Points', value: (selectedWindow === 'ALL' ? series.length : series.filter(p => p.date >= subtractMonths(last.date, WINDOW_MONTHS[selectedWindow]!)).length).toString() },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-slate-900/50 rounded-lg p-2.5">
             <div className="text-xs text-slate-500 mb-0.5">{label}</div>
