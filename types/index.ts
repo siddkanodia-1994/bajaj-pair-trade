@@ -44,6 +44,8 @@ export interface SpreadPoint {
   spread_pct: number             // residual / finsv_mcap × 100
   finsv_mcap: number
   fin_mcap: number
+  finsv_price: number            // closing price ₹
+  fin_price: number              // closing price ₹
   windows: Record<WindowKey, WindowStats>
 }
 

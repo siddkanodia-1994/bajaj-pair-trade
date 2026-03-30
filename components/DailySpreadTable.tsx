@@ -40,6 +40,8 @@ interface DisplayRow {
   stake_pct: number
   fin_mcap: number
   finsv_mcap: number
+  fin_price: number
+  finsv_price: number
   underlying_stake_value: number
   residual_value: number
   spread_pct: number
@@ -73,6 +75,8 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, on
         stake_pct,
         fin_mcap: p.fin_mcap,
         finsv_mcap: p.finsv_mcap,
+        fin_price: p.fin_price,
+        finsv_price: p.finsv_price,
         underlying_stake_value,
         residual_value,
         spread_pct,
@@ -315,8 +319,12 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, on
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">% Spread</th>
               <th className="px-3 py-2.5 text-right text-purple-400 font-medium whitespace-nowrap">Z-Score ({selectedWindow})</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Discount (₹ Cr)</th>
+              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FIN Price (₹)</th>
+              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FIN Shares (Cr)</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">MC Finance (₹ Cr)</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">Stake Value (₹ Cr)</th>
+              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FINSV Price (₹)</th>
+              <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">FINSV Shares (Cr)</th>
               <th className="px-3 py-2.5 text-right text-slate-400 font-medium whitespace-nowrap">MC Finserv (₹ Cr)</th>
               <th className="px-3 py-2.5 text-right text-blue-400 font-medium whitespace-nowrap">Mean ({selectedWindow})</th>
               <th className="px-3 py-2.5 text-right text-red-400 font-medium whitespace-nowrap">+2σ</th>
@@ -354,11 +362,23 @@ export default function DailySpreadTable({ spreadSeries, stakes, rollingMode, on
                   <td className={`px-3 py-2 text-right font-mono ${discountColor}`}>
                     {formatCr(row.residual_value)}
                   </td>
+                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                    {row.fin_price > 0 ? row.fin_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                    {row.fin_price > 0 ? (row.fin_mcap / row.fin_price).toFixed(2) : '—'}
+                  </td>
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.fin_mcap)}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.underlying_stake_value)}
+                  </td>
+                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                    {row.finsv_price > 0 ? row.finsv_price.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
+                    {row.finsv_price > 0 ? (row.finsv_mcap / row.finsv_price).toFixed(2) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right text-slate-300 font-mono">
                     {formatCr(row.finsv_mcap)}

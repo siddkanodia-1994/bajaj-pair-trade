@@ -179,6 +179,8 @@ export function computeSpreadSeries(
       spread_pct,
       finsv_mcap: row.finsv_mcap,
       fin_mcap: row.fin_mcap,
+      finsv_price: row.finsv_price,
+      fin_price: row.fin_price,
     }
   })
 
@@ -218,7 +220,7 @@ export function recomputeSpreadSeries(
     const underlying_stake_value = (stake_pct / 100) * p.fin_mcap
     const residual_value = p.finsv_mcap - underlying_stake_value
     const spread_pct = p.finsv_mcap > 0 ? (residual_value / p.finsv_mcap) * 100 : 0
-    return { date: p.date, stake_pct, underlying_stake_value, residual_value, spread_pct, finsv_mcap: p.finsv_mcap, fin_mcap: p.fin_mcap }
+    return { date: p.date, stake_pct, underlying_stake_value, residual_value, spread_pct, finsv_mcap: p.finsv_mcap, fin_mcap: p.fin_mcap, finsv_price: p.finsv_price, fin_price: p.fin_price }
   })
 
   const dates = rawPoints.map((p) => p.date)
