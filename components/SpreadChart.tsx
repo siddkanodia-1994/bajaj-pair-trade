@@ -63,10 +63,10 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export default function SpreadChart({ series, selectedWindow, onWindowChange, liveSpreadPct, rollingMode, lightMode }: Props) {
   const chartColors = lightMode ? {
-    grid:     '#6C584C',
-    axisTick: '#5A4438',
-    axisLine: '#7B6456',
-    label:    '#5A4438',
+    grid:     '#d1d5db',
+    axisTick: '#374151',
+    axisLine: '#9ca3af',
+    label:    '#374151',
   } : {
     grid:     '#1e293b',
     axisTick: '#64748b',
@@ -150,10 +150,10 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
   const xAxisInterval = Math.max(0, Math.floor(thinned.length / 8) - 1)
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
+    <div className={`rounded-xl border p-5 ${lightMode ? 'border-gray-200 bg-white' : 'border-slate-700 bg-slate-800/50'}`}>
       {/* Window selector */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+        <h2 className={`text-sm font-semibold uppercase tracking-wider ${lightMode ? 'text-slate-700' : 'text-slate-300'}`}>
           Implied Spread %
         </h2>
         <div className="flex gap-1">
@@ -241,7 +241,7 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div className="flex gap-4 mt-2 text-xs text-slate-500 justify-end">
+      <div className={`flex gap-4 mt-2 text-xs justify-end ${lightMode ? 'text-slate-600' : 'text-slate-500'}`}>
         <span className="flex items-center gap-1"><span className="w-4 h-px bg-blue-500 inline-block" /> Spread</span>
         <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#ef4444' }} /> Mean</span>
         <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#22c55e' }} /> +2SD</span>
