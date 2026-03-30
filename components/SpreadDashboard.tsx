@@ -29,7 +29,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [rollingMode, setRollingMode] = useState(false)
-  const [lightMode, setLightMode] = useState(false)
+  const [lightMode, setLightMode] = useState(true)
   const [currentStakes, setCurrentStakes] = useState<StakeHistoryRow[]>(stakes)
   const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
   const [hasOverrides, setHasOverrides] = useState(false)
@@ -52,7 +52,11 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
   )
 
   useEffect(() => {
-    setLightMode(document.documentElement.classList.contains('light'))
+    const savedTheme = localStorage.getItem('theme')
+    const isLight = savedTheme !== 'dark' // default to light unless explicitly set to dark
+    setLightMode(isLight)
+    if (isLight) document.documentElement.classList.add('light')
+    else document.documentElement.classList.remove('light')
 
     // Detect owner cookie via a lightweight fetch (cookie is HttpOnly, can't read from JS)
     fetch('/api/auth/verify-owner', { method: 'HEAD' }).catch(() => {})
