@@ -34,29 +34,29 @@ export async function GET(req: NextRequest) {
     console.error('[dhan-callback] Supabase upsert error:', error)
     return new NextResponse(html('error', error.message), {
       status: 500,
-      headers: { 'Content-Type': 'text/html' },
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   }
 
   return new NextResponse(html('success'), {
     status: 200,
-    headers: { 'Content-Type': 'text/html' },
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
   })
 }
 
 function html(status: 'success' | 'error', detail?: string) {
   if (status === 'success') {
-    return `<!DOCTYPE html><html><head><title>Dhan Token Saved</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#fff">
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Dhan Token Saved</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#fff">
 <div style="text-align:center">
-  <div style="font-size:3rem">✓</div>
+  <div style="font-size:3rem">&#10003;</div>
   <h2 style="color:#4ade80;margin:0.5rem 0">Dhan token saved</h2>
   <p style="color:#94a3b8">Token stored in Supabase. Live prices will use the new token immediately.</p>
   <p style="color:#64748b;font-size:0.85rem">You can close this tab.</p>
 </div></body></html>`
   }
-  return `<!DOCTYPE html><html><head><title>Error</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#fff">
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Error</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#fff">
 <div style="text-align:center">
-  <div style="font-size:3rem">✗</div>
+  <div style="font-size:3rem">&#10007;</div>
   <h2 style="color:#f87171;margin:0.5rem 0">Failed to save token</h2>
   <p style="color:#94a3b8">${detail ?? 'Unknown error'}</p>
 </div></body></html>`
