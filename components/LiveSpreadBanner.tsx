@@ -103,8 +103,18 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
     STRONG_SHORT: 'bg-red-500/10 border-red-500',
   }
 
+  // EOD fallback: last_updated is "YYYY-MM-DD" (10 chars); live is a full ISO timestamp
+  const isEodFallback = data.finsv.last_updated.length === 10
+
   return (
-    <div className={`rounded-xl border p-5 ${signalBgMap[signal.type]}`}>
+    <div className={`rounded-xl border overflow-hidden ${signalBgMap[signal.type]}`}>
+      {isEodFallback && (
+        <div className="flex items-center gap-2 px-5 py-2 bg-amber-500/15 border-b border-amber-500/30 text-amber-400 text-xs">
+          <span>&#9888;</span>
+          <span>Showing previous close ({data.finsv.last_updated}) — live prices unavailable. Refresh to retry.</span>
+        </div>
+      )}
+      <div className="p-5">
       {/* Top row: spread + signal */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-baseline gap-6">
@@ -175,6 +185,7 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
             Refresh
           </button>
         </div>
+      </div>
       </div>
     </div>
   )
