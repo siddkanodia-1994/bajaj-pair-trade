@@ -17,14 +17,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Get current active token: Supabase first, env var fallback
+  // Get current active token + last renewal time
   let currentToken = process.env.DHAN_ACCESS_TOKEN ?? ''
   const { data: stored } = await supabase
     .from('dhan_tokens')
-    .select('access_token')
+    .select('access_token, renewed_at')
     .eq('id', 1)
     .single()
   if (stored?.access_token) currentToken = stored.access_token
+
+  // Skip if already renewed within the last 8 hours (morning cron succeeded)
+  if (stored?.renewed_at) {
+    const ageMs = Date.now() - new Date(stored.renewed_at).getTime()
+    if (ageMs < 8 * 60 * 60 * 1000) {
+      console.log(`[renew-token] Skipped — last renewed ${Math.round(ageMs / 60000)}m ago`)
+      return NextResponse.json({ skipped: true, reason: 'Renewed within last 8 hours', renewed_at: stored.renewed_at })
+    }
+  }
 
   const clientId = process.env.DHAN_CLIENT_ID ?? ''
 
