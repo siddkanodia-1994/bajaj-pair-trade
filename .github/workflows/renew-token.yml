@@ -1,0 +1,25 @@
+name: Renew Dhan Token
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (optional)'
+        required: false
+        default: 'Manual token renewal'
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger renew-token cron
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://bajaj-pair-trade-iyzo.vercel.app/api/cron/renew-token)
+          echo "Response: $response"
+          if [ "$response" != "200" ]; then
+            echo "Token renewal failed with HTTP $response"
+            exit 1
+          fi
+          echo "Token renewal succeeded"
