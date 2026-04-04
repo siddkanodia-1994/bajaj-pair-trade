@@ -1,0 +1,17 @@
+name: Debug Dhan RenewToken
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call renew-token and print full response
+        run: |
+          echo "Calling renew-token endpoint..."
+          body=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://bajaj-pair-trade-iyzo.vercel.app/api/cron/renew-token)
+          echo "Full response body:"
+          echo "$body"
