@@ -42,10 +42,10 @@ export async function GET(request: Request) {
   }
 
   const res = await fetch('https://api.dhan.co/v2/RenewToken', {
-    method: 'POST',
+    method: 'GET',
     headers: {
       'access-token': currentToken,
-      'dhanClientId': clientId,  // RenewToken uses camelCase header per Dhan docs
+      'dhanClientId': clientId,
     },
     cache: 'no-store',
   })
