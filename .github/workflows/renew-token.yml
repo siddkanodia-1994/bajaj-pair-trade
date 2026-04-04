@@ -1,6 +1,9 @@
 name: Renew Dhan Token
 
 on:
+  schedule:
+    - cron: '30 0 * * *'   # 06:00 AM IST (00:30 UTC)
+    - cron: '45 10 * * *'  # 04:15 PM IST (10:45 UTC)
   workflow_dispatch:
     inputs:
       reason:
