@@ -1,6 +1,9 @@
 name: Seed EOD Prices
 
 on:
+  schedule:
+    - cron: '1 10 * * 1-5'   # 3:31 PM IST Mon-Fri (10:01 UTC)
+    - cron: '31 10 * * 1-5'  # 4:01 PM IST Mon-Fri (10:31 UTC)
   workflow_dispatch:
     inputs:
       reason:
@@ -14,12 +17,13 @@ jobs:
     steps:
       - name: Trigger EOD cron
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          body=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             https://bajaj-pair-trade-iyzo.vercel.app/api/cron/eod)
-          echo "Response: $response"
-          if [ "$response" != "200" ]; then
-            echo "EOD seed failed with HTTP $response"
+          echo "Response: $body"
+          if echo "$body" | grep -q '"success":true\|"skipped":true\|"date"'; then
+            echo "EOD seed succeeded"
+          else
+            echo "EOD seed failed"
             exit 1
           fi
-          echo "EOD seed succeeded"

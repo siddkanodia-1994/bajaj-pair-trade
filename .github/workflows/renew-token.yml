@@ -17,12 +17,13 @@ jobs:
     steps:
       - name: Trigger renew-token cron
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
+          body=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             https://bajaj-pair-trade-iyzo.vercel.app/api/cron/renew-token)
-          echo "Response: $response"
-          if [ "$response" != "200" ]; then
-            echo "Token renewal failed with HTTP $response"
+          echo "Response: $body"
+          if echo "$body" | grep -q '"success":true\|"skipped":true'; then
+            echo "Token renewal succeeded (or skipped — already renewed)"
+          else
+            echo "Token renewal failed"
             exit 1
           fi
-          echo "Token renewal succeeded"
