@@ -17,11 +17,12 @@ interface Props {
   rules: TradingRules
   isOwner: boolean
   onOwnerUnlock: () => void
+  apiPath?: string   // default: '/api/trades'
 }
 
 const TRANCHE_SIZES = ['50%', '30%', '20%', '10%', '10%']
 
-export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, rules, isOwner, onOwnerUnlock }: Props) {
+export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, rules, isOwner, onOwnerUnlock, apiPath = '/api/trades' }: Props) {
   // ── My Analysis state (visitor's personal trades) ─────────────────────────
   const [myTranches, setMyTranches] = useState<TradeTranche[]>([])
   const [loadingMy, setLoadingMy] = useState(true)
@@ -41,7 +42,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
 
   // Load trades on mount — visitor gets their own, owner gets ownerTrades too
   useEffect(() => {
-    fetch('/api/trades', {
+    fetch(apiPath, {
       headers: { 'X-Session-Token': getSessionToken() },
     })
       .then((r) => r.json())
@@ -59,7 +60,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
   // If isOwner prop becomes true (owner just logged in via another tab path), reload
   useEffect(() => {
     if (isOwner && !ownerUnlocked) {
-      fetch('/api/trades', {
+      fetch(apiPath, {
         headers: { 'X-Session-Token': getSessionToken() },
       })
         .then((r) => r.json())
@@ -111,7 +112,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
 
       // Cookie is now set by the server — re-fetch using the visitor's original session token.
       // The server will see bajaj_owner cookie and return ownerTrades alongside the visitor's trades.
-      const tradesRes = await fetch('/api/trades', {
+      const tradesRes = await fetch(apiPath, {
         headers: { 'X-Session-Token': getSessionToken() },
       })
       const tradesData = await tradesRes.json()
@@ -137,7 +138,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const z = ov !== undefined ? ov.z : currentZscore
     const tradeGroup = crypto.randomUUID()
     try {
-      const res = await fetch('/api/trades', {
+      const res = await fetch(apiPath, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -175,7 +176,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const nextTranche = myOpen.length + 1
     const sizeLabel = ov?.sizeLabel ?? TRANCHE_SIZES[nextTranche - 1] ?? '20%'
     try {
-      const res = await fetch('/api/trades', {
+      const res = await fetch(apiPath, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -208,7 +209,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const today = new Date().toISOString().split('T')[0]
     const spread = liveSpreadPct ?? series[series.length - 1]?.spread_pct ?? 0
     try {
-      const res = await fetch(`/api/trades/${id}`, {
+      const res = await fetch(`${apiPath}/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -241,7 +242,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     setSaving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/trades/${id}`, {
+      const res = await fetch(`${apiPath}/${id}`, {
         method: 'DELETE',
         headers: { 'X-Session-Token': getSessionToken() },
       })
@@ -267,7 +268,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const z = ov !== undefined ? ov.z : currentZscore
     const tradeGroup = crypto.randomUUID()
     try {
-      const res = await fetch('/api/trades', {
+      const res = await fetch(apiPath, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +306,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const nextTranche = ownerOpen.length + 1
     const sizeLabel = ov?.sizeLabel ?? TRANCHE_SIZES[nextTranche - 1] ?? '20%'
     try {
-      const res = await fetch('/api/trades', {
+      const res = await fetch(apiPath, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -338,7 +339,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     const today = new Date().toISOString().split('T')[0]
     const spread = liveSpreadPct ?? series[series.length - 1]?.spread_pct ?? 0
     try {
-      const res = await fetch(`/api/trades/${id}`, {
+      const res = await fetch(`${apiPath}/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -371,7 +372,7 @@ export default function ActiveTradeTab({ series, selectedWindow, liveSpreadPct, 
     setOwnerSaving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/trades/${id}`, {
+      const res = await fetch(`${apiPath}/${id}`, {
         method: 'DELETE',
         headers: { 'X-Session-Token': getSessionToken() },
       })

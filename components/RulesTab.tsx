@@ -8,6 +8,8 @@ interface Props {
   rules: TradingRules
   isOwner: boolean
   onRulesChange: (rules: TradingRules) => void
+  apiPath?: string       // default: '/api/rules'
+  storageKey?: string    // default: 'bajaj_rule_overrides'
 }
 
 // Inline editable number field — saves on blur or Enter
@@ -92,14 +94,14 @@ function Section({ title, description, children }: { title: string; description?
   )
 }
 
-export default function RulesTab({ rules, isOwner, onRulesChange }: Props) {
-  const localOverrides = getLocalRuleOverrides()
+export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/api/rules', storageKey = 'bajaj_rule_overrides' }: Props) {
+  const localOverrides = getLocalRuleOverrides(storageKey)
 
   const handleSave = useCallback(async (key: string, val: number) => {
     if (isOwner) {
       // Owner: persist to DB
       const body = [{ rule_key: key, rule_value: val }]
-      const res = await fetch('/api/rules', {
+      const res = await fetch(apiPath, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -110,10 +112,10 @@ export default function RulesTab({ rules, isOwner, onRulesChange }: Props) {
       }
     } else {
       // Visitor: save to localStorage only
-      setLocalRuleOverride(key as keyof TradingRules, val)
+      setLocalRuleOverride(key as keyof TradingRules, val, storageKey)
       onRulesChange({ ...rules, [key]: val })
     }
-  }, [isOwner, rules, onRulesChange])
+  }, [isOwner, rules, onRulesChange, apiPath, storageKey])
 
   function isOv(key: keyof TradingRules) {
     return !isOwner && key in localOverrides

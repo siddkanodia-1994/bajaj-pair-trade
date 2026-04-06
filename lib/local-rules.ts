@@ -1,30 +1,30 @@
 import type { TradingRules } from '@/types'
 
-const KEY = 'bajaj_rule_overrides'
+const DEFAULT_KEY = 'bajaj_rule_overrides'
 
-export function getLocalRuleOverrides(): Partial<TradingRules> {
+export function getLocalRuleOverrides(key = DEFAULT_KEY): Partial<TradingRules> {
   if (typeof window === 'undefined') return {}
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(key)
     return raw ? (JSON.parse(raw) as Partial<TradingRules>) : {}
   } catch {
     return {}
   }
 }
 
-export function setLocalRuleOverride(key: keyof TradingRules, value: number): void {
+export function setLocalRuleOverride(ruleKey: keyof TradingRules, value: number, key = DEFAULT_KEY): void {
   if (typeof window === 'undefined') return
-  const overrides = getLocalRuleOverrides()
-  ;(overrides as Record<string, number>)[key as string] = value
-  localStorage.setItem(KEY, JSON.stringify(overrides))
+  const overrides = getLocalRuleOverrides(key)
+  ;(overrides as Record<string, number>)[ruleKey as string] = value
+  localStorage.setItem(key, JSON.stringify(overrides))
 }
 
-export function clearLocalRuleOverrides(): void {
+export function clearLocalRuleOverrides(key = DEFAULT_KEY): void {
   if (typeof window === 'undefined') return
-  localStorage.removeItem(KEY)
+  localStorage.removeItem(key)
 }
 
-export function hasLocalOverrides(): boolean {
+export function hasLocalOverrides(key = DEFAULT_KEY): boolean {
   if (typeof window === 'undefined') return false
-  return Object.keys(getLocalRuleOverrides()).length > 0
+  return Object.keys(getLocalRuleOverrides(key)).length > 0
 }
