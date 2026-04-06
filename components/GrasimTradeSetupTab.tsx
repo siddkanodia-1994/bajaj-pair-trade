@@ -9,15 +9,26 @@ interface Props {
   selectedCompanies: GrasimSubsidiary[]
 }
 
-// F&O lot sizes — NSE defaults
+// F&O lot sizes — NSE defaults (as of Apr 2026)
 const LOT_SIZES: Record<string, number> = {
-  GRASIM:     275,
-  ULTRACEMCO: 100,
-  ABCAPITAL:  2000,
+  GRASIM:     250,
+  ULTRACEMCO: 50,
+  ABCAPITAL:  3100,
   IDEA:       70000,
   HINDALCO:   1075,
   ABFRL:      2000,
   ABLBL:      0,   // not in F&O
+}
+
+// Default NRML margin rates (Zerodha, Apr 2026)
+const DEFAULT_MARGIN_RATES: Record<string, number> = {
+  GRASIM:     17.75,
+  ULTRACEMCO: 18.57,
+  ABCAPITAL:  36.15,
+  IDEA:       20,
+  HINDALCO:   20,
+  ABFRL:      20,
+  ABLBL:      20,
 }
 
 const LABELS: Record<string, string> = {
@@ -29,8 +40,6 @@ const LABELS: Record<string, string> = {
   ABFRL:      'AB Fashion & Retail',
   ABLBL:      'AB Lifestyle Brands',
 }
-
-const DEFAULT_MARGIN_RATE = 20  // % NRML
 
 const CR = 1_00_00_000
 
@@ -62,7 +71,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
   // GRASIM leg
   const [grasimLots,    setGrasimLots]    = useState(1)
   const [grasimLotSize, setGrasimLotSize] = useState(LOT_SIZES['GRASIM'])
-  const [grasimMargin,  setGrasimMargin]  = useState(DEFAULT_MARGIN_RATE)
+  const [grasimMargin,  setGrasimMargin]  = useState(DEFAULT_MARGIN_RATES['GRASIM'])
 
   // Per-subsidiary state: lotSize, lots (auto), marginRate
   const [subLotSizes,  setSubLotSizes]  = useState<Record<string, number>>({})
@@ -82,7 +91,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
     setSubMargins(prev => {
       const next = { ...prev }
       for (const c of selectedCompanies) {
-        if (!(c in next)) next[c] = DEFAULT_MARGIN_RATE
+        if (!(c in next)) next[c] = DEFAULT_MARGIN_RATES[c] ?? 20
       }
       return next
     })
@@ -127,7 +136,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
   function handleReset() {
     setGrasimLots(1)
     setGrasimLotSize(LOT_SIZES['GRASIM'])
-    setGrasimMargin(DEFAULT_MARGIN_RATE)
+    setGrasimMargin(DEFAULT_MARGIN_RATES['GRASIM'])
     setSubLotSizes({})
     setSubMargins({})
     setManualSubLots({})
@@ -149,7 +158,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
   const grasimMarginAmt = grasimNotional != null ? grasimNotional * grasimMargin / 100 : null
   const subMarginAmts = fnoSubs.map((c, i) => {
     const n = subNotionals[i]
-    const mr = subMargins[c] ?? DEFAULT_MARGIN_RATE
+    const mr = subMargins[c] ?? DEFAULT_MARGIN_RATES[c] ?? 20
     return n != null ? n * mr / 100 : null
   })
   const totalMargin = grasimMarginAmt != null && subMarginAmts.every(v => v != null)
@@ -289,7 +298,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
               const price = liveData ? getPrice(liveData, c) : null
               const ls = subLotSizes[c] ?? LOT_SIZES[c] ?? 1
               const lots = subLots[c] ?? 1
-              const mr = subMargins[c] ?? DEFAULT_MARGIN_RATE
+              const mr = subMargins[c] ?? DEFAULT_MARGIN_RATES[c] ?? 20
               const notional = price != null ? (price * lots * ls) / CR : null
               const marginAmt = notional != null ? notional * mr / 100 : null
               return (
@@ -385,7 +394,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
       </div>
 
       <p className="text-xs text-slate-600 border-t border-slate-800 pt-4">
-        Default margin rate 20% for all instruments. Lot sizes based on NSE F&amp;O contracts.
+        NRML margin rates sourced from Zerodha Margin Calculator as of Apr 2026 (GRASIM 17.75%, ULTRACEMCO 18.57%, ABCAPITAL 36.15%).
         Actual margins vary by expiry and market conditions.{' '}
         <span className="text-slate-500">Verify at zerodha.com/margin-calculator before trading.</span>
       </p>
