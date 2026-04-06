@@ -16,6 +16,9 @@ import RulesTab from './RulesTab'
 import ActiveTradeTab from './ActiveTradeTab'
 import GrasimTradeSetupTab from './GrasimTradeSetupTab'
 import GrasimSharesTab from './GrasimSharesTab'
+import GrasimDailySpreadTable from './GrasimDailySpreadTable'
+import ForwardReturnsTable from './ForwardReturnsTable'
+import ForwardReturnObservations from './ForwardReturnObservations'
 
 type Tab = 'dashboard' | 'daily-spread' | 'rules' | 'active-trade' | 'trade-setup' | 'shares'
 
@@ -41,12 +44,24 @@ export default function GrasimDashboard({
   const [rollingMode, setRollingMode] = useState(false)
   const [lightMode, setLightMode] = useState(true)
 
+  // Editable stakes — drives spread recompute when user saves changes
+  const [currentStakes, setCurrentStakes] = useState<GrasimStakeRow[]>(stakes)
+
   // Rules state
   const [activeRules, setActiveRules] = useState<TradingRules>(initialRules)
   const [isOwner, setIsOwner] = useState(false)
   const [hasOverrides, setHasOverrides] = useState(false)
   const [zOverride, setZOverride] = useState<number | null>(initialRules.z_override ?? null)
   const dbRulesRef = useRef<TradingRules>(initialRules)
+
+  // Analog Observations / Forward Returns filter state
+  const [obsFilterYear,  setObsFilterYear]  = useState<number | null>(2022)
+  const [obsFilterMonth, setObsFilterMonth] = useState<number>(0)
+  const [dirOverride,    setDirOverride]    = useState<'long' | 'short' | null>(null)
+
+  const obsStartDate = obsFilterYear != null
+    ? `${obsFilterYear}-${String(obsFilterMonth + 1).padStart(2, '0')}-01`
+    : null
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -106,10 +121,10 @@ export default function GrasimDashboard({
     import('@/lib/local-rules').then(m => m.clearLocalRuleOverrides('grasim_rule_overrides'))
   }
 
-  // Recompute spread client-side whenever subsidiary selection changes
+  // Recompute spread client-side whenever subsidiary selection OR stakes change
   const activeSpreadSeries = useMemo(
-    () => recomputeGrasimSpread(rawPoints, stakes, selectedCompanies),
-    [rawPoints, stakes, selectedCompanies]
+    () => recomputeGrasimSpread(rawPoints, currentStakes, selectedCompanies),
+    [rawPoints, currentStakes, selectedCompanies]
   )
 
   // Compute current Z-score from the selected window
@@ -163,7 +178,7 @@ export default function GrasimDashboard({
             <SubsidiarySelector
               selected={selectedCompanies}
               onChange={setSelectedCompanies}
-              stakes={stakes}
+              stakes={currentStakes}
             />
             <button
               onClick={() => setRollingMode((v) => !v)}
@@ -227,11 +242,52 @@ export default function GrasimDashboard({
               rollingMode={rollingMode}
               rules={activeRules}
             />
+            <ForwardReturnsTable
+              series={activeSpreadSeries}
+              selectedWindow={selectedWindow}
+              liveSpreadPct={liveSpreadPct}
+              rollingMode={rollingMode}
+              rules={activeRules}
+              obsStartDate={obsStartDate}
+              zOverride={zOverride}
+              dirOverride={dirOverride}
+            />
+            <ForwardReturnObservations
+              series={activeSpreadSeries}
+              selectedWindow={selectedWindow}
+              liveSpreadPct={liveSpreadPct}
+              rollingMode={rollingMode}
+              rules={activeRules}
+              filterYear={obsFilterYear}
+              filterMonth={obsFilterMonth}
+              onFilterChange={(year, month) => { setObsFilterYear(year); setObsFilterMonth(month) }}
+              zOverride={zOverride}
+              onZOverrideChange={(v) => {
+                setZOverride(v)
+                if (v == null) setDirOverride(null)
+                if (isOwner) {
+                  fetch('/api/grasim/rules', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([{ rule_key: 'z_override', rule_value: v ?? 999 }]),
+                  }).catch(() => {})
+                }
+              }}
+              dirOverride={dirOverride}
+              onDirOverrideChange={setDirOverride}
+            />
           </div>
         )}
 
         {activeTab === 'daily-spread' && (
-          <GrasimDailySpreadTable series={activeSpreadSeries} selectedWindow={selectedWindow} />
+          <GrasimDailySpreadTable
+            series={activeSpreadSeries}
+            rawPoints={rawPoints}
+            stakes={currentStakes}
+            rollingMode={rollingMode}
+            onStakesChange={setCurrentStakes}
+            externalWindow={selectedWindow}
+          />
         )}
 
         {activeTab === 'rules' && (
@@ -291,77 +347,6 @@ export default function GrasimDashboard({
         <footer className="text-center text-xs text-slate-700 pb-6">
           Live prices from Dhan API · Historical data in Supabase · Refreshes every 60s
         </footer>
-      </div>
-    </div>
-  )
-}
-
-// Minimal daily spread table for Grasim — no stake editing needed
-function GrasimDailySpreadTable({
-  series,
-  selectedWindow,
-}: {
-  series: SpreadPoint[]
-  selectedWindow: WindowKey
-}) {
-  const sorted = [...series].reverse() // newest first
-
-  function fmt(n: number | null, d = 2) {
-    if (n == null) return '—'
-    return n.toFixed(d)
-  }
-
-  return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/30 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-700 text-slate-400">
-              <th className="text-left px-4 py-3 font-medium">Date</th>
-              <th className="text-right px-4 py-3 font-medium">Grasim MCap</th>
-              <th className="text-right px-4 py-3 font-medium">Basket MCap</th>
-              <th className="text-right px-4 py-3 font-medium">Residual</th>
-              <th className="text-right px-4 py-3 font-medium">Spread %</th>
-              <th className="text-right px-4 py-3 font-medium">Z ({selectedWindow})</th>
-              <th className="text-right px-4 py-3 font-medium">Pctile</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((p) => {
-              const ws = p.windows[selectedWindow]
-              const z = ws?.zscore ?? null
-              const zColor =
-                z == null ? '' :
-                z <= -1.5 ? 'text-green-400' :
-                z >= 1.5  ? 'text-red-400' :
-                z <= -1   ? 'text-green-300/70' :
-                z >= 1    ? 'text-red-300/70' : 'text-slate-300'
-              return (
-                <tr key={p.date} className="border-b border-slate-700/40 hover:bg-slate-700/20 transition-colors">
-                  <td className="px-4 py-2 text-slate-300 font-mono">{p.date}</td>
-                  <td className="px-4 py-2 text-right text-slate-300">
-                    {p.finsv_mcap >= 100000
-                      ? `₹${(p.finsv_mcap / 100000).toFixed(1)}L cr`
-                      : `₹${(p.finsv_mcap / 1000).toFixed(0)}k cr`}
-                  </td>
-                  <td className="px-4 py-2 text-right text-slate-300">
-                    {p.fin_mcap >= 100000
-                      ? `₹${(p.fin_mcap / 100000).toFixed(1)}L cr`
-                      : `₹${(p.fin_mcap / 1000).toFixed(0)}k cr`}
-                  </td>
-                  <td className="px-4 py-2 text-right text-slate-300">
-                    {p.residual_value >= 0
-                      ? `₹${(p.residual_value / 1000).toFixed(0)}k cr`
-                      : `-₹${(Math.abs(p.residual_value) / 1000).toFixed(0)}k cr`}
-                  </td>
-                  <td className="px-4 py-2 text-right text-white font-mono">{fmt(p.spread_pct)}%</td>
-                  <td className={`px-4 py-2 text-right font-mono ${zColor}`}>{fmt(z)}</td>
-                  <td className="px-4 py-2 text-right text-slate-400">{ws?.percentile_rank != null ? Math.round(ws.percentile_rank) : '—'}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
       </div>
     </div>
   )
