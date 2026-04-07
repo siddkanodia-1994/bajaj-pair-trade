@@ -17,11 +17,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Get current active token + last renewal time
+  // Get current active token + client_id + last renewal time
   let currentToken = process.env.DHAN_ACCESS_TOKEN ?? ''
   const { data: stored } = await supabase
     .from('dhan_tokens')
-    .select('access_token, renewed_at')
+    .select('access_token, client_id, renewed_at')
     .eq('id', 1)
     .single()
   if (stored?.access_token) currentToken = stored.access_token
@@ -35,7 +35,8 @@ export async function GET(request: Request) {
     }
   }
 
-  const clientId = process.env.DHAN_CLIENT_ID ?? ''
+  // Prefer Supabase-stored client_id (stays in sync when account changes)
+  const clientId = stored?.client_id ?? process.env.DHAN_CLIENT_ID ?? ''
 
   if (!currentToken || !clientId) {
     return NextResponse.json({ error: 'Missing DHAN_ACCESS_TOKEN or DHAN_CLIENT_ID' }, { status: 500 })

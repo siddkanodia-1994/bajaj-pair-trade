@@ -11,20 +11,28 @@ export interface DhanLivePrices {
 }
 
 /**
- * Read the active Dhan access token.
- * Prefers the Supabase-stored token (auto-renewed daily by cron).
- * Falls back to DHAN_ACCESS_TOKEN env var on first setup.
+ * Read the active Dhan credentials from Supabase.
+ * client_id is stored alongside the token so it stays in sync when the
+ * account changes — falls back to env vars on first setup.
  */
-async function getToken(): Promise<string | null> {
+async function getCredentials(): Promise<{ token: string | null; clientId: string }> {
   try {
     const { data } = await supabase
       .from('dhan_tokens')
-      .select('access_token')
+      .select('access_token, client_id')
       .eq('id', 1)
       .single()
-    if (data?.access_token) return data.access_token
+    if (data?.access_token) {
+      return {
+        token: data.access_token,
+        clientId: data.client_id ?? process.env.DHAN_CLIENT_ID ?? '',
+      }
+    }
   } catch { /* fall through */ }
-  return process.env.DHAN_ACCESS_TOKEN ?? null
+  return {
+    token: process.env.DHAN_ACCESS_TOKEN ?? null,
+    clientId: process.env.DHAN_CLIENT_ID ?? '',
+  }
 }
 
 // Per-instance in-memory cache (secondary layer on top of Supabase)
@@ -66,8 +74,7 @@ export async function getDhanLivePrices(): Promise<DhanLivePrices> {
   }
 
   // --- Layer 3: live Dhan API call ---
-  const token    = await getToken()
-  const clientId = process.env.DHAN_CLIENT_ID
+  const { token, clientId } = await getCredentials()
   if (!token || !clientId) return { fin: 0, finsv: 0 }
 
   try {

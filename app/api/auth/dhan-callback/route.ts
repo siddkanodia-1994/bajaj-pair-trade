@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
   const { error } = await supabase.from('dhan_tokens').upsert({
     id: 1,
     access_token: accessToken,
+    client_id: process.env.DHAN_CLIENT_ID ?? null,
     renewed_at: new Date().toISOString(),
   })
 
