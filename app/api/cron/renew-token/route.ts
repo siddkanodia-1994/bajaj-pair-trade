@@ -43,11 +43,13 @@ export async function GET(request: Request) {
   }
 
   const res = await fetch('https://api.dhan.co/v2/RenewToken', {
-    method: 'GET',
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       'access-token': currentToken,
       'client-id': clientId,
     },
+    body: JSON.stringify({ clientId }),
     cache: 'no-store',
   })
 
