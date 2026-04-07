@@ -11,7 +11,6 @@ import { GRASIM_DEFAULT_SELECTION } from '@/types/grasim'
 import type { GrasimLiveData, GrasimLiveQuote, GrasimSubsidiary } from '@/types/grasim'
 import { supabase } from '@/lib/supabase'
 import GrasimDashboard from '@/components/GrasimDashboard'
-import PairSwitcher from '@/components/PairSwitcher'
 
 export const dynamic = 'force-dynamic'
 
@@ -118,15 +117,12 @@ export default async function GrasimPage() {
   }
 
   return (
-    <>
-      <PairSwitcher currentPair="grasim" />
-      <GrasimDashboard
+    <GrasimDashboard
         rawPoints={rawPoints}
         stakes={stakes}
         spreadSeries={spreadSeries}
         initialLiveData={initialLiveData}
         rules={rules}
       />
-    </>
   )
 }

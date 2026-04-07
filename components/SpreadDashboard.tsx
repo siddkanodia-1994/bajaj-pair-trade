@@ -13,6 +13,7 @@ import DailySpreadTable from './DailySpreadTable'
 import SharesTab from './SharesTab'
 import RulesTab from './RulesTab'
 import ActiveTradeTab from './ActiveTradeTab'
+import PairSwitcher from './PairSwitcher'
 import TradeSetupTab from './TradeSetupTab'
 
 type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules' | 'active-trade' | 'trade-setup'
@@ -182,6 +183,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                 Reset Rules
               </button>
             )}
+            <PairSwitcher currentPair="bajaj" />
             <button
               onClick={() => setRollingMode(r => !r)}
               className={`text-xs px-3 py-1 rounded-full border transition-colors ${

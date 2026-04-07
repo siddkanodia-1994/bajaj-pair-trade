@@ -1,4 +1,3 @@
-import PairSwitcher from '@/components/PairSwitcher'
 import { supabase, fetchAllEodPrices, fetchRules } from '@/lib/supabase'
 import { computeSpreadSeries } from '@/lib/spread-calculator'
 import SpreadDashboard from '@/components/SpreadDashboard'
@@ -67,15 +66,12 @@ export default async function Page() {
   }
 
   return (
-    <>
-      <PairSwitcher currentPair="bajaj" />
-      <SpreadDashboard
+    <SpreadDashboard
         spreadSeries={spreadSeries}
         stakes={stakes ?? []}
         initialLiveData={initialLiveData}
         rules={rules}
         shareHistory={shareHistory}
       />
-    </>
   )
 }
