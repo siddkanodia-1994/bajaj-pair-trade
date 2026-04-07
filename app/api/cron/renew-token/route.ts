@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     method: 'GET',
     headers: {
       'access-token': currentToken,
-      'dhanClientId': clientId,
+      'client-id': clientId,
     },
     cache: 'no-store',
   })
