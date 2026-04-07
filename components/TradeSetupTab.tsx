@@ -176,14 +176,15 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
             Futures pair trade sizing · Prices from NSE cash market (live)
           </p>
           {computedSpread != null && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-slate-500">Spread</span>
-              <span className={`text-lg font-bold ${computedSpread < 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="inline-flex items-center gap-3 mt-3 px-4 py-2 rounded-full border bg-slate-800/80"
+              style={{ borderColor: computedSpread < 0 ? 'rgb(22 163 74 / 0.5)' : 'rgb(220 38 38 / 0.5)' }}>
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Live Spread</span>
+              <span className={`text-xl font-bold tabular-nums ${computedSpread < 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {computedSpread > 0 ? '+' : ''}{computedSpread.toFixed(2)}%
               </span>
               {isPriceManual
-                ? <span className="text-xs text-amber-400 italic">manual prices</span>
-                : <span className="text-xs text-slate-600">live</span>
+                ? <span className="text-xs text-amber-400 font-medium">● manual</span>
+                : <span className="text-xs text-slate-500">● live</span>
               }
             </div>
           )}
