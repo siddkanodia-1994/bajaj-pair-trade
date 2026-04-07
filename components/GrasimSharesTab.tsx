@@ -24,7 +24,7 @@ interface GrasimShareHistoryRow {
 }
 
 function formatShares(n: number) {
-  return (n / 1e7).toFixed(2) + ' Cr'
+  return n.toFixed(2) + ' Cr'
 }
 
 function CompanySection({
@@ -152,7 +152,7 @@ function CompanySection({
           />
           <input
             type="text"
-            placeholder="Shares (e.g. 622481903)"
+            placeholder="Shares in Cr (e.g. 68.06)"
             value={newShares}
             onChange={(e) => setNewShares(e.target.value)}
             className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500 w-48"
