@@ -21,6 +21,12 @@ html.light .rule-edit-input {
   -webkit-text-fill-color: #1F1410 !important;
 }
 
+html.light .rule-overridden-btn {
+  background-color: #C4BCB7 !important;
+  color: #1F1410 !important;
+  border-color: #2563eb !important; /* keep blue border as override indicator */
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
