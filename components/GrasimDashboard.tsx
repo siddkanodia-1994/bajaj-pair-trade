@@ -147,11 +147,11 @@ export default function GrasimDashboard({
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'dashboard',    label: 'Dashboard' },
-    { id: 'daily-spread', label: 'Daily Spread' },
-    { id: 'rules',        label: 'Rules' },
     { id: 'active-trade', label: 'Active Trade' },
     { id: 'trade-setup',  label: 'Trade Setup' },
+    { id: 'daily-spread', label: 'Daily Spread' },
     { id: 'shares',       label: 'Shares' },
+    { id: 'rules',        label: 'Rules' },
   ]
 
   return (
