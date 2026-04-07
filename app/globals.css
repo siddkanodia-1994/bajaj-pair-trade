@@ -7,7 +7,7 @@
 
 /* Rule edit input — explicit dark/light overrides that survive color-scheme and Tailwind processing */
 .rule-edit-input {
-  background-color: #334155 !important;
+  background-color: #000000 !important;
   color: #ffffff !important;
 }
 
