@@ -219,7 +219,7 @@ export default function GrasimDashboard({
         </div>
 
         {activeTab === 'dashboard' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <GrasimLiveBanner
               selectedCompanies={selectedCompanies}
               rollingMode={rollingMode}
@@ -229,21 +229,27 @@ export default function GrasimDashboard({
               onDataLoaded={setLiveData}
               rules={activeRules}
             />
-            <SpreadChart
-              series={activeSpreadSeries}
-              selectedWindow={selectedWindow}
-              onWindowChange={setSelectedWindow}
-              liveSpreadPct={liveSpreadPct}
-              rollingMode={rollingMode}
-              lightMode={lightMode}
-            />
-            <StatisticsPanel
-              series={activeSpreadSeries}
-              selectedWindow={selectedWindow}
-              liveSpreadPct={liveSpreadPct}
-              rollingMode={rollingMode}
-              rules={activeRules}
-            />
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <SpreadChart
+                  series={activeSpreadSeries}
+                  selectedWindow={selectedWindow}
+                  onWindowChange={setSelectedWindow}
+                  liveSpreadPct={liveSpreadPct}
+                  rollingMode={rollingMode}
+                  lightMode={lightMode}
+                />
+              </div>
+              <div>
+                <StatisticsPanel
+                  series={activeSpreadSeries}
+                  selectedWindow={selectedWindow}
+                  liveSpreadPct={liveSpreadPct}
+                  rollingMode={rollingMode}
+                  rules={activeRules}
+                />
+              </div>
+            </div>
             <ForwardReturnsTable
               series={activeSpreadSeries}
               selectedWindow={selectedWindow}

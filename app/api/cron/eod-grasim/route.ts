@@ -4,8 +4,6 @@ import { fetchLatestGrasimShares, createServerClient } from '@/lib/supabase-gras
 
 export const dynamic = 'force-dynamic'
 
-const CRORE = 10_000_000
-
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (
@@ -30,9 +28,10 @@ export async function GET(req: NextRequest) {
     const now = new Date()
     const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+    // shares are stored in Crores, so mcap (₹ Cr) = price × shares_in_Cr
     function mcap(price: number, company: string): number | null {
       const s = shares[company]
-      return s && price > 0 ? (price * s) / CRORE : null
+      return s && price > 0 ? price * s : null
     }
 
     const row = {

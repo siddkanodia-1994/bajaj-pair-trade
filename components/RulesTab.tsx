@@ -77,7 +77,7 @@ function RuleField({
         {value > 0 ? '+' : ''}{value}
       </button>
       {isOverridden && (
-        <span className="text-amber-400 text-xs leading-none" title="Locally overridden">●</span>
+        <span className="text-amber-600 text-xs leading-none" title="Locally overridden">●</span>
       )}
     </div>
   )
