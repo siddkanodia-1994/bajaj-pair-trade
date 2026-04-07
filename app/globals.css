@@ -16,9 +16,9 @@
 }
 
 html.light .rule-edit-input {
-  background-color: #ffffff !important;
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
+  background-color: #C4BCB7 !important;
+  color: #1F1410 !important;
+  -webkit-text-fill-color: #1F1410 !important;
 }
 
 @theme inline {
