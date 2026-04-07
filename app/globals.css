@@ -3,6 +3,8 @@
 :root {
   --background: #020617;
   --foreground: #f1f5f9;
+  --input-edit-bg: #334155;
+  --input-edit-color: #ffffff;
 }
 
 @theme inline {
@@ -25,6 +27,8 @@ html {
 html.light {
   color-scheme: light;
   --background: #F0EEED;
+  --input-edit-bg: #ffffff;
+  --input-edit-color: #000000;
   --foreground: #1F1410;
 
   /* Surfaces — smooth warm scale */

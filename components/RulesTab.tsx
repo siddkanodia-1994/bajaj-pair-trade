@@ -1,18 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-
-function useIsLight() {
-  const [light, setLight] = useState(false)
-  useEffect(() => {
-    const check = () => setLight(document.documentElement.classList.contains('light'))
-    check()
-    const obs = new MutationObserver(check)
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => obs.disconnect()
-  }, [])
-  return light
-}
+import { useState, useCallback } from 'react'
 import type { TradingRules } from '@/types'
 import { setLocalRuleOverride, getLocalRuleOverrides } from '@/lib/local-rules'
 
@@ -47,7 +35,6 @@ function RuleField({
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
   const [saving, setSaving] = useState(false)
-  const isLight = useIsLight()
 
   function commit() {
     const num = parseFloat(draft)
@@ -73,8 +60,8 @@ function RuleField({
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
         className="w-20 text-center text-xs rounded px-1.5 py-0.5 outline-none border border-blue-500"
         style={{
-          backgroundColor: isLight ? '#ffffff' : '#334155',
-          color: isLight ? '#000000' : '#ffffff',
+          backgroundColor: 'var(--input-edit-bg)',
+          color: 'var(--input-edit-color)',
         }}
       />
     )
