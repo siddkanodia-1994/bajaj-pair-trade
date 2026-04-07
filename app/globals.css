@@ -9,6 +9,7 @@
 .rule-edit-input {
   background-color: #000000 !important;
   color: #ffffff !important;
+  color-scheme: normal; /* prevent browser from applying OS light/dark input rendering */
 }
 
 html.light .rule-edit-input {
