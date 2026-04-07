@@ -51,11 +51,11 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { id } = await req.json() as { id: number }
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+    const { company, effective_date } = await req.json() as { company: string; effective_date: string }
+    if (!company || !effective_date) return NextResponse.json({ error: 'company and effective_date required' }, { status: 400 })
 
     const db = createServerClient()
-    const { error } = await db.from('grasim_share_history').delete().eq('id', id)
+    const { error } = await db.from('grasim_share_history').delete().eq('company', company).eq('effective_date', effective_date)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })

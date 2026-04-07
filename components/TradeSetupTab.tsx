@@ -200,6 +200,7 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
               <th className={thCls}>Price (₹)</th>
               <th className={thCls}>Lot Size</th>
               <th className={thCls}>No. of Lots</th>
+              <th className={thCls}>No. of Shares</th>
               <th className={thCls}>Amount (₹ Cr)</th>
               <th className={thCls}>Margin Rate %</th>
               <th className={thCls}>Margin (₹ Cr)</th>
@@ -229,6 +230,9 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
               </td>
               <td className={`${tdCls} w-24`}>
                 {editableNum(lotsLong, setLotsLong, () => setManualOverride(true))}
+              </td>
+              <td className={tdCls}>
+                <span className="text-slate-300 font-mono">{(lotsLong * lotSizeLong).toLocaleString('en-IN')}</span>
               </td>
               <td className={tdCls}>
                 <span className="text-white font-medium">
@@ -276,6 +280,9 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
                 {editableNum(lotsShort, setLotsShort, () => setManualOverride(true))}
               </td>
               <td className={tdCls}>
+                <span className="text-slate-300 font-mono">{(lotsShort * lotSizeShort).toLocaleString('en-IN')}</span>
+              </td>
+              <td className={tdCls}>
                 <span className="text-white font-medium">
                   {amountShort != null ? `₹${fmt2(amountShort)} Cr` : '—'}
                 </span>
@@ -299,6 +306,7 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
             {/* TOTAL row */}
             <tr className="border-t-2 border-slate-600 bg-slate-800/40">
               <td className={`${tdCls} text-left font-bold text-slate-200`}>TOTAL</td>
+              <td className={tdCls}>—</td>
               <td className={tdCls}>—</td>
               <td className={tdCls}>—</td>
               <td className={tdCls}>—</td>

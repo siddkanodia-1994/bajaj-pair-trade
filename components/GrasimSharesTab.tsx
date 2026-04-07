@@ -16,7 +16,6 @@ const LABELS: Record<GrasimCompany, string> = {
 }
 
 interface GrasimShareHistoryRow {
-  id: number
   company: string
   effective_date: string
   shares: number
@@ -40,7 +39,7 @@ function CompanySection({
   const [newShares, setNewShares] = useState('')
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState<string | null>(null)
-  const [deleting,  setDeleting]  = useState<number | null>(null)
+  const [deleting,  setDeleting]  = useState<string | null>(null)
   const [expanded,  setExpanded]  = useState(false)
 
   async function handleSave() {
@@ -61,13 +60,14 @@ function CompanySection({
     } finally { setSaving(false) }
   }
 
-  async function handleDelete(id: number) {
-    setDeleting(id)
+  async function handleDelete(company: string, date: string) {
+    const key = `${company}-${date}`
+    setDeleting(key)
     try {
       await fetch('/api/grasim/shares', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ company, effective_date: date }),
       })
       onSaved()
     } finally { setDeleting(null) }
@@ -107,23 +107,26 @@ function CompanySection({
                 <td colSpan={4} className="px-4 py-4 text-center text-slate-600">No entries yet</td>
               </tr>
             ) : (
-              visibleRows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-800/80">
-                  <td className="px-4 py-2 text-slate-300">{row.effective_date}</td>
-                  <td className="px-4 py-2 text-right font-mono text-white">{formatShares(row.shares)}</td>
-                  <td className="px-4 py-2 text-slate-500">{row.source ?? '—'}</td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => handleDelete(row.id)}
-                      disabled={deleting === row.id}
-                      className="text-slate-600 hover:text-red-400 transition-colors disabled:opacity-50 text-xs px-2"
-                      title="Delete row"
-                    >
-                      {deleting === row.id ? '…' : '×'}
-                    </button>
-                  </td>
-                </tr>
-              ))
+              visibleRows.map((row) => {
+                const rowKey = `${row.company}-${row.effective_date}`
+                return (
+                  <tr key={rowKey} className="border-b border-slate-800 hover:bg-slate-800/80">
+                    <td className="px-4 py-2 text-slate-300">{row.effective_date}</td>
+                    <td className="px-4 py-2 text-right font-mono text-white">{formatShares(row.shares)}</td>
+                    <td className="px-4 py-2 text-slate-500">{row.source ?? '—'}</td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        onClick={() => handleDelete(row.company, row.effective_date)}
+                        disabled={deleting === rowKey}
+                        className="text-slate-600 hover:text-red-400 transition-colors disabled:opacity-50 text-xs px-2"
+                        title="Delete row"
+                      >
+                        {deleting === rowKey ? '…' : '×'}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

@@ -10,11 +10,11 @@
     },
     {
       "path": "/api/cron/eod-grasim",
-      "schedule": "1 10 * * 1-5"
+      "schedule": "6 10 * * 1-5"
     },
     {
       "path": "/api/cron/eod-grasim",
-      "schedule": "31 10 * * 1-5"
+      "schedule": "36 10 * * 1-5"
     },
     {
       "path": "/api/cron/renew-token",

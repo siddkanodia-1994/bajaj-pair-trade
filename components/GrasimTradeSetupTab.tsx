@@ -253,6 +253,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
               <th className={thCls}>Price (₹)</th>
               <th className={thCls}>Lot Size</th>
               <th className={thCls}>No. of Lots</th>
+              <th className={thCls}>No. of Shares</th>
               <th className={thCls}>Amount (₹ Cr)</th>
               <th className={thCls}>Margin Rate %</th>
               <th className={thCls}>Margin (₹ Cr)</th>
@@ -277,6 +278,9 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
               </td>
               <td className={`${tdCls} w-24`}>
                 {numInput(grasimLots, v => setGrasimLots(v))}
+              </td>
+              <td className={tdCls}>
+                <span className="text-slate-300 font-mono">{(grasimLots * grasimLotSize).toLocaleString('en-IN')}</span>
               </td>
               <td className={tdCls}>
                 <span className="text-white font-medium">
@@ -327,6 +331,9 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
                     })}
                   </td>
                   <td className={tdCls}>
+                    <span className="text-slate-300 font-mono">{(lots * ls).toLocaleString('en-IN')}</span>
+                  </td>
+                  <td className={tdCls}>
                     <span className="text-white font-medium">
                       {notional != null ? `₹${fmt2(notional)} Cr` : '—'}
                     </span>
@@ -355,7 +362,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
                     </div>
                   </div>
                 </td>
-                <td colSpan={6} className="px-4 py-3 text-xs text-slate-500 text-left">
+                <td colSpan={7} className="px-4 py-3 text-xs text-slate-500 text-left">
                   Not available in F&amp;O — excluded from sizing
                 </td>
               </tr>
@@ -364,6 +371,7 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
             {/* TOTAL row */}
             <tr className="border-t-2 border-slate-600 bg-slate-800/40">
               <td className={`${tdCls} text-left font-bold text-slate-200`}>TOTAL</td>
+              <td className={tdCls}>—</td>
               <td className={tdCls}>—</td>
               <td className={tdCls}>—</td>
               <td className={tdCls}>—</td>
