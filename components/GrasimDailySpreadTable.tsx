@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import type { SpreadPoint, WindowKey, WindowStats } from '@/types'
 import { WINDOW_MONTHS, WINDOW_KEYS } from '@/types'
 import type { GrasimRawPoint, GrasimStakeRow } from '@/types/grasim'
-import { calendarRollingStats, computeFixedWindowStats, subtractMonths } from '@/lib/spread-calculator'
+import { calendarRollingStats, computeFixedWindowStats, subtractMonths, getQuarterEndDate } from '@/lib/spread-calculator'
 
 interface Props {
   series: SpreadPoint[]
@@ -84,11 +84,27 @@ export default function GrasimDailySpreadTable({
   }, [rawPoints])
 
   // --- Stakes editor state ---
-  // Unique quarter dates
+  // Unique quarter dates (DB only)
   const quarterDates = useMemo(() => {
     const set = new Set(stakes.map((s) => s.quarter_end_date))
     return [...set].sort((a, b) => b.localeCompare(a)) // newest first
   }, [stakes])
+
+  // Auto-inject current quarter as placeholder if not yet in DB
+  const currentQE = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return getQuarterEndDate(today)
+  }, [])
+
+  const isPlaceholderQuarter = useMemo(
+    () => !stakes.some(s => s.quarter_end_date === currentQE),
+    [stakes, currentQE]
+  )
+
+  const effectiveQuarterDates = useMemo(() => {
+    if (!isPlaceholderQuarter) return quarterDates
+    return [currentQE, ...quarterDates]
+  }, [quarterDates, isPlaceholderQuarter, currentQE])
 
   // editValues: { 'quarter|company': '56.70' }
   const [editValues, setEditValues] = useState<Record<string, string>>(() => {
@@ -100,17 +116,30 @@ export default function GrasimDailySpreadTable({
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Sync editValues when stakes prop changes (e.g. after external save)
+  // Sync editValues when stakes prop changes; also seed placeholder quarter from prior quarter
   useEffect(() => {
     setEditValues((prev) => {
       const next = { ...prev }
+      // Sync existing DB stakes
       for (const s of stakes) {
         const k = `${s.quarter_end_date}|${s.company}`
         if (!(k in next)) next[k] = String(s.stake_pct)
       }
+      // Seed placeholder quarter with most recent prior quarter values
+      const needsPlaceholder = !stakes.some(s => s.quarter_end_date === currentQE)
+      if (needsPlaceholder) {
+        const priorQE = quarterDates[0] // most recent existing quarter
+        for (const c of SUB_COMPANIES) {
+          const k = `${currentQE}|${c}`
+          if (!(k in next) && priorQE) {
+            const priorVal = stakes.find(s => s.quarter_end_date === priorQE && s.company === c)?.stake_pct
+            next[k] = priorVal != null ? String(priorVal) : ''
+          }
+        }
+      }
       return next
     })
-  }, [stakes])
+  }, [stakes, quarterDates, currentQE])
 
   function getEditVal(qe: string, company: string): string {
     return editValues[`${qe}|${company}`] ?? ''
@@ -122,10 +151,15 @@ export default function GrasimDailySpreadTable({
   }
 
   function isRowDirty(qe: string): boolean {
+    const isNew = !stakes.some(s => s.quarter_end_date === qe)
     for (const c of SUB_COMPANIES) {
       const raw = parseFloat(getEditVal(qe, c))
-      const current = stakes.find((s) => s.quarter_end_date === qe && s.company === c)?.stake_pct
-      if (!isNaN(raw) && current !== undefined && raw !== current) return true
+      if (isNew) {
+        if (!isNaN(raw)) return true // any filled value = dirty for new placeholder row
+      } else {
+        const current = stakes.find((s) => s.quarter_end_date === qe && s.company === c)?.stake_pct
+        if (!isNaN(raw) && current !== undefined && raw !== current) return true
+      }
     }
     return false
   }
@@ -255,14 +289,18 @@ export default function GrasimDailySpreadTable({
                 </tr>
               </thead>
               <tbody>
-                {quarterDates.map((qe) => {
+                {effectiveQuarterDates.map((qe) => {
                   const isSaving = saving[qe]
                   const err = errors[qe]
                   const dirty = isRowDirty(qe)
+                  const isNew = isPlaceholderQuarter && qe === currentQE
 
                   return (
                     <tr key={qe} className="border-b border-slate-700/50 hover:bg-slate-800/30">
-                      <td className="px-3 py-2 text-slate-300 font-medium whitespace-nowrap">{fmtQuarter(qe)}</td>
+                      <td className="px-3 py-2 text-slate-300 font-medium whitespace-nowrap">
+                        {fmtQuarter(qe)}
+                        {isNew && <span className="ml-2 text-xs text-blue-400 font-normal italic">new</span>}
+                      </td>
                       <td className="px-3 py-2 text-slate-400 whitespace-nowrap">
                         {new Date(qe + 'T00:00:00').toLocaleDateString('en-IN', {
                           day: '2-digit', month: 'short', year: 'numeric',
