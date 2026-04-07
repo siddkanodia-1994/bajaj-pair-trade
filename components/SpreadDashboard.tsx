@@ -95,8 +95,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
           const localOverrides = getLocalRuleOverrides()
           return { ...updated, ...localOverrides }
         })
-        // Sync z_override from DB (always authoritative from owner)
-        setZOverride(updated.z_override ?? null)
+        // Do NOT reset zOverride here — user may have typed a local override that we must not clobber
       } catch { /* ignore */ }
     }, 60_000)
 

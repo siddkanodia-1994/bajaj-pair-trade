@@ -96,7 +96,7 @@ export default function GrasimDashboard({
           const localOverrides = getLocalRuleOverrides('grasim_rule_overrides')
           return { ...updated, ...localOverrides }
         })
-        setZOverride(updated.z_override ?? null)
+        // Do NOT reset zOverride here — user may have typed a local override that we must not clobber
       } catch { /* ignore */ }
     }, 60_000)
 
