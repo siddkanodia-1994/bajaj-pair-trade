@@ -5,16 +5,20 @@
   --foreground: #f1f5f9;
 }
 
-/* Rule edit input — explicit dark/light overrides that survive color-scheme and Tailwind processing */
+/* Rule edit input — fully reset browser/OS input rendering */
 .rule-edit-input {
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: normal;
   background-color: #000000 !important;
   color: #ffffff !important;
-  color-scheme: normal; /* prevent browser from applying OS light/dark input rendering */
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 html.light .rule-edit-input {
   background-color: #ffffff !important;
   color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
 @theme inline {
