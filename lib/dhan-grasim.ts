@@ -39,16 +39,40 @@ const MEM_CACHE_TTL_MS = 30_000
 
 /**
  * Fetch last traded prices for all 7 Grasim-universe tickers in one Dhan LTP call.
- * In-memory cache (30s) prevents redundant Dhan hits within the same serverless instance.
+ *
+ * Rate-limit protection (Dhan allows 1 req/second):
+ *  1. In-memory cache (30s) — per serverless instance, fastest path.
+ *  2. Supabase global cache (30s) — shared across all instances; prevents cold-start
+ *     serverless instances from hammering Dhan on every pair switch.
+ *  3. Live Dhan API call — only fires when both caches are stale.
+ *
  * Returns zero for each ticker on any error — caller falls back to EOD.
  */
 export async function getDhanGrasimPrices(): Promise<GrasimDhanPrices> {
-  // In-memory cache
+  // --- Layer 1: in-memory cache (fastest, per-instance) ---
   if (_memCache && Date.now() - _memCache.at < MEM_CACHE_TTL_MS) {
     return _memCache.prices
   }
 
-  const token    = await getToken()
+  // --- Layer 2: Supabase global cache (shared across instances) ---
+  const { data: cached } = await supabase
+    .from('dhan_tokens')
+    .select('access_token, grasim_prices, grasim_prices_fetched_at')
+    .eq('id', 1)
+    .single()
+
+  const cacheAge = cached?.grasim_prices_fetched_at
+    ? Date.now() - new Date(cached.grasim_prices_fetched_at).getTime()
+    : Infinity
+
+  if (cacheAge < 30_000 && cached?.grasim_prices) {
+    const prices = cached.grasim_prices as GrasimDhanPrices
+    _memCache = { prices, at: Date.now() }
+    return prices
+  }
+
+  // --- Layer 3: live Dhan API call ---
+  const token    = cached?.access_token ?? process.env.DHAN_ACCESS_TOKEN ?? null
   const clientId = process.env.DHAN_CLIENT_ID
   if (!token || !clientId) return { ...ZERO_PRICES }
 
@@ -84,6 +108,12 @@ export async function getDhanGrasimPrices(): Promise<GrasimDhanPrices> {
 
     if (prices.GRASIM > 0) {
       _memCache = { prices, at: Date.now() }
+      // Update Supabase global cache (fire-and-forget; don't await to keep response fast)
+      void supabase.from('dhan_tokens').upsert({
+        id: 1,
+        grasim_prices: prices,
+        grasim_prices_fetched_at: new Date().toISOString(),
+      })
     }
 
     return prices

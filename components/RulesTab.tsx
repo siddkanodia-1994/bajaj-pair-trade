@@ -70,7 +70,7 @@ function RuleField({
         onClick={() => { setDraft(String(value)); setEditing(true) }}
         className={`w-20 text-center text-xs rounded px-1.5 py-0.5 transition-colors font-mono
           ${saving ? 'bg-blue-900/50 text-blue-300' :
-            isOverridden ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-500 hover:border-amber-600' :
+            isOverridden ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-200 border border-blue-500 hover:border-blue-600' :
             'bg-slate-700/50 hover:bg-slate-600/60 text-slate-200 hover:text-white border border-slate-600/50 hover:border-slate-500'}
         `}
         title={isOverridden ? 'Locally overridden — click to edit' : 'Click to edit'}
@@ -78,7 +78,7 @@ function RuleField({
         {value > 0 ? '+' : ''}{value}
       </button>
       {isOverridden && (
-        <span className="text-amber-600 text-xs leading-none" title="Locally overridden">●</span>
+        <span className="text-blue-400 text-xs leading-none" title="Locally overridden">●</span>
       )}
     </div>
   )

@@ -155,8 +155,8 @@ export default function GrasimDashboard({
   ]
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-4">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-4">
 
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
