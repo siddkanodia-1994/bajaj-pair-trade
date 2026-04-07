@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { GrasimLiveData, GrasimSubsidiary } from '@/types/grasim'
+import { useState, useEffect, useMemo } from 'react'
+import type { GrasimLiveData, GrasimSubsidiary, GrasimStakeRow } from '@/types/grasim'
 
 interface Props {
   liveData: GrasimLiveData | null
   currentZ: number | null
   selectedCompanies: GrasimSubsidiary[]
+  stakes: GrasimStakeRow[]
 }
 
 // F&O lot sizes — NSE defaults (as of Apr 2026)
@@ -62,7 +63,7 @@ function ImbBadge({ pct }: { pct: number }) {
   )
 }
 
-export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompanies }: Props) {
+export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompanies, stakes }: Props) {
   // Direction: Long GRASIM / Short basket when Z <= 0
   const signalDir = (currentZ == null || currentZ <= 0) ? 'long-grasim' : 'short-grasim'
   const [direction, setDirection] = useState<'long-grasim' | 'short-grasim'>(signalDir)
@@ -78,6 +79,42 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
   const [subLots,      setSubLots]      = useState<Record<string, number>>({})
   const [subMargins,   setSubMargins]   = useState<Record<string, number>>({})
   const [manualSubLots, setManualSubLots] = useState<Record<string, boolean>>({})
+
+  // Manual price overrides
+  const [manualGrasimPrice, setManualGrasimPrice] = useState<number | null>(null)
+  const [manualSubPrices,   setManualSubPrices]   = useState<Record<string, number | null>>({})
+
+  const isPriceManual = manualGrasimPrice != null || Object.values(manualSubPrices).some(v => v != null)
+
+  // Current effective stake % per subsidiary (latest quarter_end_date ≤ today)
+  const currentStakeMap = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const map: Record<string, number> = {}
+    for (const company of selectedCompanies) {
+      const rows = stakes
+        .filter(s => s.company === company && s.quarter_end_date <= today)
+        .sort((a, b) => b.quarter_end_date.localeCompare(a.quarter_end_date))
+      map[company] = rows[0]?.stake_pct ?? 0
+    }
+    return map
+  }, [stakes, selectedCompanies])
+
+  // Recompute spread from effective prices
+  const computedGrasimSpread = useMemo(() => {
+    if (!liveData || !liveData.grasim.price) return null
+    const gPrice = manualGrasimPrice ?? liveData.grasim.price
+    const grasimMcap = liveData.grasim.mcap * (gPrice / liveData.grasim.price)
+    let basketMcap = 0
+    for (const company of selectedCompanies) {
+      const sub = liveData[company.toLowerCase() as keyof GrasimLiveData] as { price: number; mcap: number } | undefined
+      if (!sub || !sub.price) continue
+      const mPrice  = manualSubPrices[company] ?? sub.price
+      const newMcap = sub.mcap * (mPrice / sub.price)
+      basketMcap += (currentStakeMap[company] ?? 0) / 100 * newMcap
+    }
+    if (grasimMcap <= 0) return null
+    return ((grasimMcap - basketMcap) / grasimMcap) * 100
+  }, [manualGrasimPrice, manualSubPrices, liveData, selectedCompanies, currentStakeMap])
 
   // Init subsidiary state when selection changes
   useEffect(() => {
@@ -108,7 +145,8 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
   const ablblSelected = selectedCompanies.includes('ABLBL')
 
   const grasimPrice = liveData ? getPrice(liveData, 'GRASIM') : null
-  const grasimNotional = grasimPrice != null ? (grasimPrice * grasimLots * grasimLotSize) / CR : null
+  const effectiveGrasimPrice = manualGrasimPrice ?? grasimPrice
+  const grasimNotional = effectiveGrasimPrice != null ? (effectiveGrasimPrice * grasimLots * grasimLotSize) / CR : null
 
   // Auto-compute per-sub lots: match grasimNotional / fnoSubs.length per subsidiary
   useEffect(() => {
@@ -142,11 +180,14 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
     setManualSubLots({})
     setUserToggledDir(false)
     setDirection((currentZ == null || currentZ <= 0) ? 'long-grasim' : 'short-grasim')
+    setManualGrasimPrice(null)
+    setManualSubPrices({})
   }
 
-  // Totals
+  // Totals (use effective prices = manual override ?? live)
   const subNotionals = fnoSubs.map(c => {
-    const price = liveData ? getPrice(liveData, c) : null
+    const livePrice = liveData ? getPrice(liveData, c) : null
+    const price = manualSubPrices[c] ?? livePrice
     const ls = subLotSizes[c] ?? LOT_SIZES[c] ?? 1
     const lots = subLots[c] ?? 1
     return price != null ? (price * lots * ls) / CR : null
@@ -207,6 +248,18 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
           <p className="text-xs text-slate-500 mt-0.5">
             Futures pair trade sizing · GRASIM vs selected basket subsidiaries
           </p>
+          {computedGrasimSpread != null && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-slate-500">Spread</span>
+              <span className={`text-lg font-bold ${computedGrasimSpread < 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {computedGrasimSpread > 0 ? '+' : ''}{computedGrasimSpread.toFixed(2)}%
+              </span>
+              {isPriceManual
+                ? <span className="text-xs text-amber-400 italic">manual prices</span>
+                : <span className="text-xs text-slate-600">live</span>
+              }
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
@@ -268,10 +321,8 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
                   <span className="text-white font-medium">GRASIM</span>
                 </div>
               </td>
-              <td className={tdCls}>
-                <span className="text-slate-300 font-medium">
-                  {grasimPrice != null ? `₹${grasimPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
-                </span>
+              <td className={`${tdCls} w-32`}>
+                {numInput(effectiveGrasimPrice ?? 0, v => setManualGrasimPrice(v), 0.01, 0.01)}
               </td>
               <td className={`${tdCls} w-24`}>
                 {numInput(grasimLotSize, v => setGrasimLotSize(v))}
@@ -299,7 +350,8 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
 
             {/* Subsidiary rows */}
             {fnoSubs.map((c, i) => {
-              const price = liveData ? getPrice(liveData, c) : null
+              const livePrice = liveData ? getPrice(liveData, c) : null
+              const price = manualSubPrices[c] ?? livePrice
               const ls = subLotSizes[c] ?? LOT_SIZES[c] ?? 1
               const lots = subLots[c] ?? 1
               const mr = subMargins[c] ?? DEFAULT_MARGIN_RATES[c] ?? 20
@@ -316,10 +368,8 @@ export default function GrasimTradeSetupTab({ liveData, currentZ, selectedCompan
                       </div>
                     </div>
                   </td>
-                  <td className={tdCls}>
-                    <span className="text-slate-300 font-medium">
-                      {price != null ? `₹${price.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
-                    </span>
+                  <td className={`${tdCls} w-32`}>
+                    {numInput(price ?? 0, v => setManualSubPrices(prev => ({ ...prev, [c]: v })), 0.01, 0.01)}
                   </td>
                   <td className={`${tdCls} w-24`}>
                     {numInput(ls, v => setSubLotSizes(prev => ({ ...prev, [c]: v })))}

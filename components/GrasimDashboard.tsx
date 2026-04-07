@@ -345,6 +345,7 @@ export default function GrasimDashboard({
             liveData={liveData}
             currentZ={effectiveZ}
             selectedCompanies={selectedCompanies}
+            stakes={currentStakes}
           />
         )}
 

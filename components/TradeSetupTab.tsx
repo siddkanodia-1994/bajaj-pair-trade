@@ -61,12 +61,32 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
   const [marginRateFin,   setMarginRateFin]   = useState(DEFAULT_MARGIN_RATE_FIN)
   const [marginRateFinsv, setMarginRateFinsv] = useState(DEFAULT_MARGIN_RATE_FINSV)
 
+  // Manual price overrides
+  const [manualPriceFinSV, setManualPriceFinSV] = useState<number | null>(null)
+  const [manualPriceFin,   setManualPriceFin]   = useState<number | null>(null)
+
   const priceFinsv = liveData?.finsv.price ?? null
   const priceFin   = liveData?.fin.price   ?? null
 
-  // Determine long/short prices & rates based on direction
-  const priceLong  = direction === 'long-finsv' ? priceFinsv : priceFin
-  const priceShort = direction === 'long-finsv' ? priceFin   : priceFinsv
+  // Effective prices — live unless user has overridden
+  const effectiveFinSV = manualPriceFinSV ?? priceFinsv
+  const effectiveFin   = manualPriceFin   ?? priceFin
+
+  const isPriceManual = manualPriceFinSV != null || manualPriceFin != null
+
+  // Recompute spread from effective prices using mcap scaling
+  const computedSpread = useMemo(() => {
+    if (!liveData) return null
+    if (!effectiveFinSV || !effectiveFin) return liveData.spread_pct
+    const newFinSVMcap = liveData.finsv.mcap * (effectiveFinSV / liveData.finsv.price)
+    const newFinMcap   = liveData.fin.mcap   * (effectiveFin   / liveData.fin.price)
+    const residual     = newFinSVMcap - (liveData.stake_pct / 100) * newFinMcap
+    return newFinSVMcap > 0 ? (residual / newFinSVMcap) * 100 : null
+  }, [effectiveFinSV, effectiveFin, liveData])
+
+  // Determine long/short effective prices & rates based on direction
+  const priceLong  = direction === 'long-finsv' ? effectiveFinSV : effectiveFin
+  const priceShort = direction === 'long-finsv' ? effectiveFin   : effectiveFinSV
   const lotSizeLong  = direction === 'long-finsv' ? lotSizeFinsv : lotSizeFin
   const lotSizeShort = direction === 'long-finsv' ? lotSizeFin   : lotSizeFinsv
   const marginRateLong  = direction === 'long-finsv' ? marginRateFinsv : marginRateFin
@@ -104,6 +124,8 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
     setManualOverride(false)
     setUserToggledDir(false)
     setDirection((currentZ == null || currentZ <= 0) ? 'long-finsv' : 'long-fin')
+    setManualPriceFinSV(null)
+    setManualPriceFin(null)
   }
 
   // Computed amounts & margins
@@ -153,6 +175,18 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
           <p className="text-xs text-slate-500 mt-0.5">
             Futures pair trade sizing · Prices from NSE cash market (live)
           </p>
+          {computedSpread != null && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-slate-500">Spread</span>
+              <span className={`text-lg font-bold ${computedSpread < 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {computedSpread > 0 ? '+' : ''}{computedSpread.toFixed(2)}%
+              </span>
+              {isPriceManual
+                ? <span className="text-xs text-amber-400 italic">manual prices</span>
+                : <span className="text-xs text-slate-600">live</span>
+              }
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Direction badge + flip */}
@@ -215,10 +249,12 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
                   <span className="text-white font-medium">{tickerLong}</span>
                 </div>
               </td>
-              <td className={tdCls}>
-                <span className="text-slate-300 font-medium">
-                  {priceLong != null ? `₹${priceLong.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
-                </span>
+              <td className={`${tdCls} w-32`}>
+                {editableNum(
+                  priceLong ?? 0,
+                  (v) => direction === 'long-finsv' ? setManualPriceFinSV(v) : setManualPriceFin(v),
+                  undefined, 0.01, 0.01,
+                )}
               </td>
               <td className={`${tdCls} w-24`}>
                 {editableNum(
@@ -263,10 +299,12 @@ export default function TradeSetupTab({ liveData, currentZ }: Props) {
                   <span className="text-white font-medium">{tickerShort}</span>
                 </div>
               </td>
-              <td className={tdCls}>
-                <span className="text-slate-300 font-medium">
-                  {priceShort != null ? `₹${priceShort.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
-                </span>
+              <td className={`${tdCls} w-32`}>
+                {editableNum(
+                  priceShort ?? 0,
+                  (v) => direction === 'long-finsv' ? setManualPriceFin(v) : setManualPriceFinSV(v),
+                  undefined, 0.01, 0.01,
+                )}
               </td>
               <td className={`${tdCls} w-24`}>
                 {editableNum(
