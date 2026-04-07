@@ -70,11 +70,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No token in response', raw: json }, { status: 502 })
   }
 
-  await supabase.from('dhan_tokens').upsert({
+  const renewedAt = new Date().toISOString()
+  const { error: upsertError } = await supabase.from('dhan_tokens').upsert({
     id: 1,
     access_token: newToken,
-    renewed_at: new Date().toISOString(),
+    renewed_at: renewedAt,
   })
 
-  return NextResponse.json({ success: true, renewed_at: new Date().toISOString() })
+  if (upsertError) {
+    console.error('[renew-token] Failed to save new token to Supabase:', upsertError)
+    return NextResponse.json({ error: 'Failed to persist new token', detail: upsertError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, renewed_at: renewedAt })
 }
