@@ -3,8 +3,17 @@
 :root {
   --background: #020617;
   --foreground: #f1f5f9;
-  --input-edit-bg: #334155;
-  --input-edit-color: #ffffff;
+}
+
+/* Rule edit input — explicit dark/light overrides that survive color-scheme and Tailwind processing */
+.rule-edit-input {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+html.light .rule-edit-input {
+  background-color: #ffffff !important;
+  color: #000000 !important;
 }
 
 @theme inline {
@@ -27,8 +36,6 @@ html {
 html.light {
   color-scheme: light;
   --background: #F0EEED;
-  --input-edit-bg: #ffffff;
-  --input-edit-color: #000000;
   --foreground: #1F1410;
 
   /* Surfaces — smooth warm scale */

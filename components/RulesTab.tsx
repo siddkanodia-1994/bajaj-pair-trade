@@ -58,11 +58,7 @@ function RuleField({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-        className="w-20 text-center text-xs rounded px-1.5 py-0.5 outline-none border border-blue-500"
-        style={{
-          backgroundColor: 'var(--input-edit-bg)',
-          color: 'var(--input-edit-color)',
-        }}
+        className="rule-edit-input w-20 text-center text-xs rounded px-1.5 py-0.5 outline-none border border-blue-500"
       />
     )
   }
