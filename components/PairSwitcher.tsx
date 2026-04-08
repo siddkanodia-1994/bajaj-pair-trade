@@ -39,7 +39,7 @@ export default function PairSwitcher({ currentPair }: Props) {
       </div>
 
       {open && (
-        <div className="absolute top-full right-0 mt-1">
+        <div className="absolute top-full right-0 pt-1">
           <div
             className="w-52 rounded-xl shadow-2xl overflow-hidden"
             style={{ backgroundColor: '#0f172a', border: '1px solid #334155' }}
