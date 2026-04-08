@@ -209,7 +209,7 @@ export default function TradeSignalCard({
       )}
 
       {/* Manual override — always visible when a new tranche can still be added */}
-      {!readOnly && openTranches.length < 5 && !isEnter && !isAdd && (
+      {!readOnly && openTranches.length < 5 && (
         <div className="mt-4 pt-3 border-t border-slate-700/30">
           <button
             onClick={() => manualOpen ? setManualOpen(false) : openManual()}
