@@ -53,6 +53,11 @@ export default function GrasimDashboard({
   const [isOwner, setIsOwner] = useState(false)
   const [hasOverrides, setHasOverrides] = useState(false)
   const [zOverride, setZOverride] = useState<number | null>(initialRules.z_override ?? null)
+
+  // Owner unlock for Rules tab
+  const [ownerPassword, setOwnerPassword] = useState('')
+  const [ownerLoading, setOwnerLoading] = useState(false)
+  const [ownerError, setOwnerError] = useState<string | null>(null)
   const dbRulesRef = useRef<TradingRules>(initialRules)
 
   // Analog Observations / Forward Returns filter state
@@ -120,6 +125,26 @@ export default function GrasimDashboard({
     setActiveRules(dbRulesRef.current)
     setHasOverrides(false)
     import('@/lib/local-rules').then(m => m.clearLocalRuleOverrides('grasim_rule_overrides'))
+  }
+
+  async function handleOwnerUnlock() {
+    setOwnerLoading(true)
+    setOwnerError(null)
+    try {
+      const res = await fetch('/api/auth/verify-owner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: ownerPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Wrong password')
+      setIsOwner(true)
+      setOwnerPassword('')
+    } catch (e) {
+      setOwnerError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setOwnerLoading(false)
+    }
   }
 
   // Recompute spread client-side whenever subsidiary selection OR stakes change
@@ -300,7 +325,7 @@ export default function GrasimDashboard({
 
         {activeTab === 'rules' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 className="text-base font-semibold text-white">Trading Rules</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -309,14 +334,39 @@ export default function GrasimDashboard({
                     : 'Visitor mode · Changes are stored locally in your browser only and do not affect other users.'}
                 </p>
               </div>
-              {hasOverrides && !isOwner && (
-                <button
-                  onClick={handleResetRules}
-                  className="text-xs px-3 py-1 rounded border border-amber-600 bg-amber-600/10 text-amber-400 hover:bg-amber-600/20 transition-colors"
-                >
-                  Reset to defaults
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {!isOwner && (
+                  <>
+                    <input
+                      type="password"
+                      placeholder="Owner password"
+                      value={ownerPassword}
+                      onChange={(e) => setOwnerPassword(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleOwnerUnlock() }}
+                      className="text-xs bg-slate-800 border border-slate-600 text-white rounded px-2 py-1 focus:outline-none focus:border-blue-500 placeholder-slate-500 w-36"
+                    />
+                    <button
+                      onClick={handleOwnerUnlock}
+                      disabled={ownerLoading || !ownerPassword}
+                      className="text-xs px-3 py-1 rounded border border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 transition-colors disabled:opacity-50"
+                    >
+                      {ownerLoading ? '…' : 'Unlock'}
+                    </button>
+                    {ownerError && <span className="text-xs text-red-400">{ownerError}</span>}
+                  </>
+                )}
+                {isOwner && (
+                  <span className="text-xs border border-blue-700/50 text-blue-400 px-2 py-0.5 rounded-full">Owner</span>
+                )}
+                {hasOverrides && !isOwner && (
+                  <button
+                    onClick={handleResetRules}
+                    className="text-xs px-3 py-1 rounded border border-amber-600 bg-amber-600/10 text-amber-400 hover:bg-amber-600/20 transition-colors"
+                  >
+                    Reset to defaults
+                  </button>
+                )}
+              </div>
             </div>
             <RulesTab
               rules={activeRules}
