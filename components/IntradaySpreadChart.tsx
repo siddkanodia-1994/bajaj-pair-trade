@@ -211,14 +211,14 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
 
       {/* Chart */}
       <div style={lightMode ? { border: '1px solid #6C584C' } : undefined}>
-        <ResponsiveContainer width="100%" height={260}>
-          {isEmpty ? (
-            <div className="flex items-center justify-center h-full">
-              <span className={`text-sm ${lightMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                {isToday ? 'No intraday data yet — ticks start at 9:15 AM IST' : 'No data for this date'}
-              </span>
-            </div>
-          ) : (
+        {isEmpty ? (
+          <div className="flex items-center justify-center" style={{ height: 260 }}>
+            <span className={`text-sm ${lightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              {isToday ? 'No intraday data yet — ticks start at 9:15 AM IST' : 'No data for this date'}
+            </span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis
@@ -254,8 +254,8 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
                 activeDot={{ r: 3, fill: '#3b82f6' }}
               />
             </ComposedChart>
-          )}
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Legend */}
