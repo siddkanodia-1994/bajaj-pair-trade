@@ -396,7 +396,7 @@ export function getExitBasedObservations(
   let lastExitIdx = -1         // index of the last closed trade's exit
   let lastEntryZ: number | null = null  // z-score at last accepted entry
 
-  for (let i = 0; i < series.length - 1; i++) {
+  for (let i = 0; i < series.length; i++) {
     const entryZ = getZ(series[i])
     if (entryZ == null) continue
 
