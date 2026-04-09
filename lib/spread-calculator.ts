@@ -300,18 +300,31 @@ function getTimeStop(horizon: number, rules: TradingRules): number {
 }
 
 /**
- * Returns true if z has reached or passed the exit zone for the given direction.
- * Long: z >= exit_zone_lo  (z has recovered to the lower exit boundary or beyond)
- * Short: z <= -exit_zone_lo (mirrored)
- * Upper bound is intentionally not checked — an overshoot (z past exit_zone_hi)
- * still means the trade has resolved and should be labelled "target", not "time_stop".
+ * Returns true if z satisfies the configured exit condition for the given direction.
+ *
+ * Each bound (lo, hi) has an independent operator (gte | lte).
+ * The two conditions are combined with OR — whichever fires first triggers the exit.
+ *
+ * Short exit zone auto-mirrors: bounds are negated and operators are flipped (gte ↔ lte).
+ *
+ * Examples (long, lo=-1 gte, hi=-0.5 gte):
+ *   z = -0.8 → z ≥ -1 ✓ → exit as target
+ *   z = +0.3 → z ≥ -1 ✓ → exit as target (overshoot still counts)
  */
 function inExitZone(z: number, direction: 'long' | 'short', rules: TradingRules): boolean {
+  const loOp = rules.exit_lo_op ?? 'gte'
+  const hiOp = rules.exit_hi_op ?? 'gte'
+
   if (direction === 'long') {
-    return z >= rules.exit_zone_lo
+    const loCheck = loOp === 'gte' ? z >= rules.exit_zone_lo : z <= rules.exit_zone_lo
+    const hiCheck = hiOp === 'gte' ? z >= rules.exit_zone_hi : z <= rules.exit_zone_hi
+    return loCheck || hiCheck
   }
-  // short: mirrored
-  return z <= -rules.exit_zone_lo
+
+  // short: negate bounds, flip operators
+  const loCheck = loOp === 'gte' ? z <= -rules.exit_zone_lo : z >= -rules.exit_zone_lo
+  const hiCheck = hiOp === 'gte' ? z <= -rules.exit_zone_hi : z >= -rules.exit_zone_hi
+  return loCheck || hiCheck
 }
 
 /**

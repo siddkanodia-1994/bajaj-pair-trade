@@ -24,10 +24,14 @@ export async function fetchRules(): Promise<TradingRules> {
     .select('rule_key, rule_value')
   if (!data || data.length === 0) return { ...DEFAULT_RULES }
   const rules: TradingRules = { ...DEFAULT_RULES }
+  const OP_KEYS = new Set(['exit_lo_op', 'exit_hi_op'])
   for (const row of data) {
     if (row.rule_key === 'z_override') {
       // 999 is sentinel for "no override"
       rules.z_override = Number(row.rule_value) === 999 ? null : Number(row.rule_value)
+    } else if (OP_KEYS.has(row.rule_key)) {
+      // String-valued operator fields
+      ;(rules as unknown as Record<string, string>)[row.rule_key] = row.rule_value as string
     } else if (row.rule_key in rules) {
       (rules as unknown as Record<string, number>)[row.rule_key] = Number(row.rule_value)
     }

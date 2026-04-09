@@ -11,7 +11,7 @@ export async function GET() {
   }
 }
 
-// Body: Array<{ rule_key: string; rule_value: number }>
+// Body: Array<{ rule_key: string; rule_value: number | string }>
 export async function PATCH(req: Request) {
   const cookieHeader = (req as import('next/server').NextRequest).cookies?.get?.('bajaj_owner')
   const isOwner = cookieHeader?.value === '1'
@@ -20,7 +20,7 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const body = await req.json() as { rule_key: string; rule_value: number }[]
+    const body = await req.json() as { rule_key: string; rule_value: number | string }[]
     const db = createServerClient()
 
     const upserts = body.map((item) => ({

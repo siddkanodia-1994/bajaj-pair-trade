@@ -124,8 +124,10 @@ export interface TradingRules {
   short_threshold: number         // e.g.  1.0
   strong_short_threshold: number  // e.g.  1.5
   entry_band: number              // ±z-score band for analog matching, e.g. 0.25
-  exit_zone_lo: number            // long exit zone lower bound, e.g. -0.5
-  exit_zone_hi: number            // long exit zone upper bound, e.g.  0.0 (short mirrored)
+  exit_zone_lo: number            // long exit zone lower bound, e.g. -1.0
+  exit_zone_hi: number            // long exit zone upper bound, e.g. -0.5 (short mirrored)
+  exit_lo_op: 'gte' | 'lte'      // operator for lower bound: 'gte' = z ≥ lo, 'lte' = z ≤ lo
+  exit_hi_op: 'gte' | 'lte'      // operator for upper bound: 'gte' = z ≥ hi, 'lte' = z ≤ hi
   add_to_trade_gap: number        // SDs further to trigger 2nd observation, e.g. 0.5
   time_stop_5d: number
   time_stop_20d: number
@@ -144,6 +146,8 @@ export const DEFAULT_RULES: TradingRules = {
   entry_band: 0.25,
   exit_zone_lo: -0.5,
   exit_zone_hi: 0.0,
+  exit_lo_op: 'gte',
+  exit_hi_op: 'gte',
   add_to_trade_gap: 0.5,
   time_stop_5d: 5,
   time_stop_20d: 20,

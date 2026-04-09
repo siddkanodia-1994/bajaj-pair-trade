@@ -117,6 +117,24 @@ export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/ap
     }
   }, [isOwner, rules, onRulesChange, apiPath, storageKey])
 
+  const handleSaveOp = useCallback(async (key: string, val: 'gte' | 'lte') => {
+    if (isOwner) {
+      const body = [{ rule_key: key, rule_value: val }]
+      const res = await fetch(apiPath, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        const updated: TradingRules = await res.json()
+        onRulesChange(updated)
+      }
+    } else {
+      setLocalRuleOverride(key as keyof TradingRules, val, storageKey)
+      onRulesChange({ ...rules, [key]: val })
+    }
+  }, [isOwner, rules, onRulesChange, apiPath, storageKey])
+
   function isOv(key: keyof TradingRules) {
     return !isOwner && key in localOverrides
   }
@@ -239,14 +257,31 @@ export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/ap
             <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Long Exit Zone</div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-slate-500 w-32">Lower bound (SD)</div>
+              <select
+                value={rules.exit_lo_op ?? 'gte'}
+                onChange={(e) => handleSaveOp('exit_lo_op', e.target.value as 'gte' | 'lte')}
+                className="text-xs bg-slate-700/50 border border-slate-600/50 text-slate-200 rounded px-1.5 py-0.5 font-mono cursor-pointer"
+              >
+                <option value="gte">≥</option>
+                <option value="lte">≤</option>
+              </select>
               <RuleField value={rules.exit_zone_lo} ruleKey="exit_zone_lo" isOverridden={isOv('exit_zone_lo')} onSave={handleSave} min={-5} max={0} />
             </div>
             <div className="flex items-center gap-3">
               <div className="text-xs text-slate-500 w-32">Upper bound (SD)</div>
+              <select
+                value={rules.exit_hi_op ?? 'gte'}
+                onChange={(e) => handleSaveOp('exit_hi_op', e.target.value as 'gte' | 'lte')}
+                className="text-xs bg-slate-700/50 border border-slate-600/50 text-slate-200 rounded px-1.5 py-0.5 font-mono cursor-pointer"
+              >
+                <option value="gte">≥</option>
+                <option value="lte">≤</option>
+              </select>
               <RuleField value={rules.exit_zone_hi} ruleKey="exit_zone_hi" isOverridden={isOv('exit_zone_hi')} onSave={handleSave} min={-2} max={2} />
             </div>
             <div className="text-xs text-slate-600 mt-1">
-              Short exit zone is mirrored: [{-rules.exit_zone_hi}, {-rules.exit_zone_lo}]
+              Exit fires when either condition is met (OR). Short zone auto-mirrors.
+              Short: {rules.exit_lo_op === 'lte' ? '≥' : '≤'} {-rules.exit_zone_lo} OR {rules.exit_hi_op === 'lte' ? '≥' : '≤'} {-rules.exit_zone_hi}
             </div>
           </div>
 

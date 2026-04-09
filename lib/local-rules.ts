@@ -12,10 +12,10 @@ export function getLocalRuleOverrides(key = DEFAULT_KEY): Partial<TradingRules> 
   }
 }
 
-export function setLocalRuleOverride(ruleKey: keyof TradingRules, value: number, key = DEFAULT_KEY): void {
+export function setLocalRuleOverride(ruleKey: keyof TradingRules, value: number | string, key = DEFAULT_KEY): void {
   if (typeof window === 'undefined') return
   const overrides = getLocalRuleOverrides(key)
-  ;(overrides as Record<string, number>)[ruleKey as string] = value
+  ;(overrides as Record<string, number | string>)[ruleKey as string] = value
   localStorage.setItem(key, JSON.stringify(overrides))
 }
 
