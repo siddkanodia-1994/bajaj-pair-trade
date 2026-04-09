@@ -362,7 +362,7 @@ function findExit(
   }
   // Trade still open — use latest available point as provisional exit
   const lastIdx = series.length - 1
-  if (lastIdx > entryIdx) {
+  if (lastIdx >= entryIdx) {
     return { exitIdx: lastIdx, exit_reason: 'open' }
   }
   return null
