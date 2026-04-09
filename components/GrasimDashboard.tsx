@@ -11,6 +11,7 @@ import { subtractMonths, computeFixedWindowStats } from '@/lib/spread-calculator
 import GrasimLiveBanner from './GrasimLiveBanner'
 import SubsidiarySelector from './SubsidiarySelector'
 import SpreadChart from './SpreadChart'
+import IntradaySpreadChart from './IntradaySpreadChart'
 import StatisticsPanel from './StatisticsPanel'
 import RulesTab from './RulesTab'
 import ActiveTradeTab from './ActiveTradeTab'
@@ -275,6 +276,20 @@ export default function GrasimDashboard({
                 />
               </div>
             </div>
+            {/* Intraday Spread Chart */}
+            {(() => {
+              const last = activeSpreadSeries[activeSpreadSeries.length - 1]
+              const ws = last?.windows[selectedWindow]
+              return (
+                <IntradaySpreadChart
+                  pair="grasim"
+                  mean={ws?.mean ?? null}
+                  stdDev={ws?.std ?? null}
+                  lightMode={lightMode}
+                />
+              )
+            })()}
+
             <ForwardReturnsTable
               series={activeSpreadSeries}
               selectedWindow={selectedWindow}

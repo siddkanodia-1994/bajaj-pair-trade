@@ -15,6 +15,7 @@ import RulesTab from './RulesTab'
 import ActiveTradeTab from './ActiveTradeTab'
 import PairSwitcher from './PairSwitcher'
 import TradeSetupTab from './TradeSetupTab'
+import IntradaySpreadChart from './IntradaySpreadChart'
 
 type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules' | 'active-trade' | 'trade-setup'
 
@@ -264,6 +265,20 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                 />
               </div>
             </div>
+
+            {/* Intraday Spread Chart */}
+            {(() => {
+              const last = activeSpreadSeries[activeSpreadSeries.length - 1]
+              const ws = last?.windows[selectedWindow]
+              return (
+                <IntradaySpreadChart
+                  pair="bajaj"
+                  mean={ws?.mean ?? null}
+                  stdDev={ws?.std ?? null}
+                  lightMode={lightMode}
+                />
+              )
+            })()}
 
             {/* Forward Returns */}
             <ForwardReturnsTable
