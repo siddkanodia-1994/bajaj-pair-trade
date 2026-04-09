@@ -82,7 +82,6 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: Props) {
   const apiBase = pair === 'bajaj' ? '/api/intraday' : '/api/grasim/intraday'
 
-  const [availableDates, setAvailableDates] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [ticks, setTicks] = useState<Tick[]>([])
   const [timeframe, setTimeframe] = useState<Timeframe>('5m')
@@ -98,7 +97,6 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
       .then((r) => r.json())
       .then((d) => {
         const dates: string[] = d.availableDates ?? []
-        setAvailableDates(dates)
         const today = todayIST()
         setSelectedDate(dates.includes(today) ? today : (dates[0] ?? today))
       })
@@ -159,8 +157,8 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
 
   return (
     <div
-      className={`rounded-xl border p-5 ${lightMode ? 'border-gray-200' : 'border-slate-700 bg-slate-800/50'}`}
-      style={lightMode ? { backgroundColor: '#ffffff' } : undefined}
+      className={`rounded-xl p-5 ${lightMode ? '' : 'border border-slate-700 bg-slate-800/50'}`}
+      style={lightMode ? { backgroundColor: '#ffffff', border: '1px solid #6C584C' } : undefined}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
