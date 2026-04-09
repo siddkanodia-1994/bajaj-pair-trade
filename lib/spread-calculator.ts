@@ -300,16 +300,18 @@ function getTimeStop(horizon: number, rules: TradingRules): number {
 }
 
 /**
- * Returns true if z is in the exit zone for the given direction.
- * Long exit zone: [exit_zone_lo, exit_zone_hi]
- * Short exit zone: [-exit_zone_hi, -exit_zone_lo]  (mirrored)
+ * Returns true if z has reached or passed the exit zone for the given direction.
+ * Long: z >= exit_zone_lo  (z has recovered to the lower exit boundary or beyond)
+ * Short: z <= -exit_zone_lo (mirrored)
+ * Upper bound is intentionally not checked — an overshoot (z past exit_zone_hi)
+ * still means the trade has resolved and should be labelled "target", not "time_stop".
  */
 function inExitZone(z: number, direction: 'long' | 'short', rules: TradingRules): boolean {
   if (direction === 'long') {
-    return z >= rules.exit_zone_lo && z <= rules.exit_zone_hi
+    return z >= rules.exit_zone_lo
   }
   // short: mirrored
-  return z >= -rules.exit_zone_hi && z <= -rules.exit_zone_lo
+  return z <= -rules.exit_zone_lo
 }
 
 /**
