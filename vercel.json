@@ -23,6 +23,6 @@
     {
       "path": "/api/cron/renew-token",
       "schedule": "45 10 * * *"
-    },
+    }
   ]
 }
