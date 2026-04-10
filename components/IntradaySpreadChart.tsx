@@ -173,7 +173,7 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
   return (
     <div
       className={`rounded-xl border p-5 ${lightMode ? 'border-gray-200' : 'border-slate-700 bg-slate-800/50'}`}
-      style={lightMode ? { backgroundColor: '#ffffff' } : undefined}
+      style={lightMode ? { backgroundColor: '#ffffff', boxShadow: '0 1px 8px rgba(0,0,0,0.10)' } : undefined}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
