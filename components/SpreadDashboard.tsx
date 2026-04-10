@@ -267,18 +267,12 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
             </div>
 
             {/* Intraday Spread Chart */}
-            {(() => {
-              const last = activeSpreadSeries[activeSpreadSeries.length - 1]
-              const ws = last?.windows[selectedWindow]
-              return (
-                <IntradaySpreadChart
-                  pair="bajaj"
-                  mean={ws?.mean ?? null}
-                  stdDev={ws?.std ?? null}
-                  lightMode={lightMode}
-                />
-              )
-            })()}
+            <IntradaySpreadChart
+              pair="bajaj"
+              mean={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.mean ?? null}
+              stdDev={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.std ?? null}
+              lightMode={lightMode}
+            />
 
             {/* Forward Returns */}
             <ForwardReturnsTable

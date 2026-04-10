@@ -277,18 +277,12 @@ export default function GrasimDashboard({
               </div>
             </div>
             {/* Intraday Spread Chart */}
-            {(() => {
-              const last = activeSpreadSeries[activeSpreadSeries.length - 1]
-              const ws = last?.windows[selectedWindow]
-              return (
-                <IntradaySpreadChart
-                  pair="grasim"
-                  mean={ws?.mean ?? null}
-                  stdDev={ws?.std ?? null}
-                  lightMode={lightMode}
-                />
-              )
-            })()}
+            <IntradaySpreadChart
+              pair="grasim"
+              mean={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.mean ?? null}
+              stdDev={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.std ?? null}
+              lightMode={lightMode}
+            />
 
             <ForwardReturnsTable
               series={activeSpreadSeries}
