@@ -20,6 +20,11 @@ interface Tick {
 interface ChartPoint {
   time: string
   spread: number
+  mean: number | null
+  upper1: number | null
+  lower1: number | null
+  upper2: number | null
+  lower2: number | null
 }
 
 type Timeframe = '5m' | '15m' | '30m' | '1h'
@@ -53,7 +58,15 @@ function timeToMinutes(t: string): number {
 }
 
 /** Aggregate 1-minute ticks into candles of `bucketMins` minutes. Returns last spread in each bucket. */
-function aggregate(ticks: Tick[], bucketMins: number): ChartPoint[] {
+function aggregate(
+  ticks: Tick[],
+  bucketMins: number,
+  mean: number | null,
+  upper1: number | null,
+  lower1: number | null,
+  upper2: number | null,
+  lower2: number | null,
+): ChartPoint[] {
   if (ticks.length === 0) return []
   const buckets = new Map<string, number>()
   for (const tick of ticks) {
@@ -65,16 +78,18 @@ function aggregate(ticks: Tick[], bucketMins: number): ChartPoint[] {
   }
   return Array.from(buckets.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([time, spread]) => ({ time, spread }))
+    .map(([time, spread]) => ({ time, spread, mean, upper1, lower1, upper2, lower2 }))
 }
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null
   const spread = payload.find((p) => p.name === 'spread')?.value
+  const meanVal = payload.find((p) => p.name === 'mean')?.value
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs shadow-xl">
       <div className="text-slate-400 mb-1">{label}</div>
       {spread != null && <div className="text-white font-medium">Spread: {spread.toFixed(2)}%</div>}
+      {meanVal != null && <div className="text-slate-400">Mean: {meanVal.toFixed(2)}%</div>}
     </div>
   )
 }
@@ -88,8 +103,8 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
   const [loading, setLoading] = useState(false)
 
   const chartColors = lightMode
-    ? { grid: '#d1d5db', axisTick: '#374151', axisLine: '#9ca3af' }
-    : { grid: '#1e293b', axisTick: '#64748b', axisLine: '#334155' }
+    ? { grid: '#d1d5db', axisTick: '#374151', axisLine: '#9ca3af', label: '#374151' }
+    : { grid: '#1e293b', axisTick: '#64748b', axisLine: '#334155', label: '#64748b' }
 
   // Fetch available dates on mount
   useEffect(() => {
@@ -131,13 +146,13 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
     return () => clearInterval(id)
   }, [selectedDate, fetchTicks])
 
-  const chartData = aggregate(ticks, TF_MINUTES[timeframe])
-
-  // SD reference lines (from historical window stats)
+  // SD values (constant across all chart points)
   const upper1 = mean != null && stdDev != null ? mean + stdDev : null
   const lower1 = mean != null && stdDev != null ? mean - stdDev : null
   const upper2 = mean != null && stdDev != null ? mean + 2 * stdDev : null
   const lower2 = mean != null && stdDev != null ? mean - 2 * stdDev : null
+
+  const chartData = aggregate(ticks, TF_MINUTES[timeframe], mean, upper1, lower1, upper2, lower2)
 
   // Y-axis domain
   const allY = chartData.map((d) => d.spread)
@@ -157,8 +172,8 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
 
   return (
     <div
-      className={`rounded-xl p-5 ${lightMode ? '' : 'border border-slate-700 bg-slate-800/50'}`}
-      style={lightMode ? { backgroundColor: '#ffffff', border: '1px solid #6C584C' } : undefined}
+      className={`rounded-xl border p-5 ${lightMode ? 'border-gray-200' : 'border-slate-700 bg-slate-800/50'}`}
+      style={lightMode ? { backgroundColor: '#ffffff' } : undefined}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -179,11 +194,9 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                   timeframe === tf
                     ? 'bg-blue-600 text-white'
-                    : lightMode
-                    ? 'text-slate-500 hover:bg-gray-100'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
                 }`}
               >
@@ -210,13 +223,13 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
       {/* Chart */}
       <div style={lightMode ? { border: '1px solid #6C584C' } : undefined}>
         {isEmpty ? (
-          <div className="flex items-center justify-center" style={{ height: 260 }}>
+          <div className="flex items-center justify-center" style={{ height: 340 }}>
             <span className={`text-sm ${lightMode ? 'text-slate-400' : 'text-slate-500'}`}>
               {isToday ? 'No intraday data yet — ticks start at 9:15 AM IST' : 'No data for this date'}
             </span>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={340}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis
@@ -232,15 +245,18 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
                 axisLine={{ stroke: chartColors.axisLine }}
                 tickLine={false}
                 domain={yDomain}
+                allowDataOverflow={false}
               />
               <Tooltip content={<CustomTooltip />} />
 
-              {/* Historical SD reference lines */}
-              {mean   != null && <ReferenceLine y={mean}   stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 3" label={{ value: `μ ${mean.toFixed(1)}%`,   fill: chartColors.axisTick, fontSize: 9, position: 'insideTopLeft'  }} />}
-              {upper2 != null && <ReferenceLine y={upper2} stroke="#22c55e" strokeWidth={1}   strokeDasharray="4 3" label={{ value: `+2σ`,                       fill: '#22c55e',            fontSize: 9, position: 'insideTopRight' }} />}
-              {upper1 != null && <ReferenceLine y={upper1} stroke="#eab308" strokeWidth={1}   strokeDasharray="4 3" label={{ value: `+1σ`,                       fill: '#eab308',            fontSize: 9, position: 'insideTopRight' }} />}
-              {lower1 != null && <ReferenceLine y={lower1} stroke="#f97316" strokeWidth={1}   strokeDasharray="4 3" label={{ value: `-1σ`,                       fill: '#f97316',            fontSize: 9, position: 'insideTopRight' }} />}
-              {lower2 != null && <ReferenceLine y={lower2} stroke="#06b6d4" strokeWidth={1}   strokeDasharray="4 3" label={{ value: `-2σ`,                       fill: '#06b6d4',            fontSize: 9, position: 'insideTopRight' }} />}
+              {/* Mean line — solid red */}
+              <Line dataKey="mean"   stroke="#ef4444" strokeWidth={1.5} dot={false} activeDot={false} name="mean"   legendType="none" />
+
+              {/* SD lines */}
+              <Line dataKey="upper2" stroke="#22c55e" strokeWidth={1.5} dot={false} activeDot={false} name="upper2" legendType="none" />
+              <Line dataKey="upper1" stroke="#eab308" strokeWidth={1.5} dot={false} activeDot={false} name="upper1" legendType="none" />
+              <Line dataKey="lower1" stroke="#f97316" strokeWidth={1.5} dot={false} activeDot={false} name="lower1" legendType="none" />
+              <Line dataKey="lower2" stroke="#06b6d4" strokeWidth={1.5} dot={false} activeDot={false} name="lower2" legendType="none" />
 
               {/* Intraday spread line */}
               <Line
@@ -251,22 +267,29 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
                 name="spread"
                 activeDot={{ r: 3, fill: '#3b82f6' }}
               />
+
+              {/* Mean μ label */}
+              {mean != null && (
+                <ReferenceLine
+                  y={mean}
+                  stroke="transparent"
+                  label={{ value: `μ ${mean.toFixed(1)}%`, fill: chartColors.label, fontSize: 10, position: 'insideTopLeft' }}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>
 
       {/* Legend */}
-      {!isEmpty && (
-        <div className={`flex gap-4 mt-2 text-xs justify-end ${lightMode ? 'text-slate-600' : 'text-slate-500'}`}>
-          <span className="flex items-center gap-1"><span className="w-4 h-px bg-blue-500 inline-block" /> Spread</span>
-          {mean   != null && <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#ef4444' }} /> Mean</span>}
-          {upper2 != null && <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#22c55e' }} /> +2SD</span>}
-          {upper1 != null && <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#eab308' }} /> +1SD</span>}
-          {lower1 != null && <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#f97316' }} /> −1SD</span>}
-          {lower2 != null && <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#06b6d4' }} /> −2SD</span>}
-        </div>
-      )}
+      <div className={`flex gap-4 mt-2 text-xs justify-end ${lightMode ? 'text-slate-600' : 'text-slate-500'}`}>
+        <span className="flex items-center gap-1"><span className="w-4 h-px bg-blue-500 inline-block" /> Spread</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#ef4444' }} /> Mean</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#22c55e' }} /> +2SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#eab308' }} /> +1SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#f97316' }} /> −1SD</span>
+        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#06b6d4' }} /> −2SD</span>
+      </div>
     </div>
   )
 }
