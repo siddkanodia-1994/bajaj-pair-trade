@@ -154,17 +154,16 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
 
   const chartData = aggregate(ticks, TF_MINUTES[timeframe], mean, upper1, lower1, upper2, lower2)
 
-  // Y-axis domain
-  const allY = chartData.map((d) => d.spread)
-  if (mean != null) allY.push(mean)
-  if (upper2 != null) allY.push(upper2)
-  if (lower2 != null) allY.push(lower2)
-  const yMin = allY.length ? Math.min(...allY) : -5
-  const yMax = allY.length ? Math.max(...allY) : 20
-  const yPad = Math.max((yMax - yMin) * 0.12, 1)
+  // Y-axis domain — based on spread values only so intraday movement is visible.
+  // SD lines are stamped on each point and will render outside the visible area
+  // when the spread is far from historical mean (which is the typical intraday case).
+  const spreadValues = chartData.map((d) => d.spread)
+  const yMin = spreadValues.length ? Math.min(...spreadValues) : -5
+  const yMax = spreadValues.length ? Math.max(...spreadValues) : 20
+  const yPad = Math.max((yMax - yMin) * 0.3, 0.5)
   const yDomain: [number, number] = [
-    Math.round((yMin - yPad) * 2) / 2,
-    Math.round((yMax + yPad) * 2) / 2,
+    Math.round((yMin - yPad) * 4) / 4,
+    Math.round((yMax + yPad) * 4) / 4,
   ]
 
   const isEmpty = chartData.length === 0
@@ -245,7 +244,7 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
                 axisLine={{ stroke: chartColors.axisLine }}
                 tickLine={false}
                 domain={yDomain}
-                allowDataOverflow={false}
+                allowDataOverflow={true}
               />
               <Tooltip content={<CustomTooltip />} />
 
