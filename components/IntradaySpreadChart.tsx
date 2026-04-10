@@ -27,8 +27,8 @@ interface ChartPoint {
   lower2: number | null
 }
 
-type Timeframe = '5m' | '15m' | '30m' | '1h'
-const TF_MINUTES: Record<Timeframe, number> = { '5m': 5, '15m': 15, '30m': 30, '1h': 60 }
+type Timeframe = '1m' | '5m' | '15m' | '30m' | '1h'
+const TF_MINUTES: Record<Timeframe, number> = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60 }
 
 interface Props {
   pair: 'bajaj' | 'grasim'
@@ -99,7 +99,7 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
 
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [ticks, setTicks] = useState<Tick[]>([])
-  const [timeframe, setTimeframe] = useState<Timeframe>('5m')
+  const [timeframe, setTimeframe] = useState<Timeframe>('1m')
   const [loading, setLoading] = useState(false)
 
   const chartColors = lightMode
@@ -190,7 +190,7 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
         <div className="flex items-center gap-3">
           {/* Timeframe pills */}
           <div className="flex gap-1">
-            {(['5m', '15m', '30m', '1h'] as Timeframe[]).map((tf) => (
+            {(['1m', '5m', '15m', '30m', '1h'] as Timeframe[]).map((tf) => (
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
