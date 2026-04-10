@@ -24,9 +24,5 @@
       "path": "/api/cron/renew-token",
       "schedule": "45 10 * * *"
     },
-    {
-      "path": "/api/cron/intraday",
-      "schedule": "* 3-10 * * 1-5"
-    }
   ]
 }
