@@ -269,8 +269,6 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
             {/* Intraday Spread Chart */}
             <IntradaySpreadChart
               pair="bajaj"
-              mean={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.mean ?? null}
-              stdDev={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.std ?? null}
               lightMode={lightMode}
             />
 

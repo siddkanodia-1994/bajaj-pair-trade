@@ -279,8 +279,6 @@ export default function GrasimDashboard({
             {/* Intraday Spread Chart */}
             <IntradaySpreadChart
               pair="grasim"
-              mean={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.mean ?? null}
-              stdDev={activeSpreadSeries[activeSpreadSeries.length - 1]?.windows[selectedWindow]?.std ?? null}
               lightMode={lightMode}
             />
 

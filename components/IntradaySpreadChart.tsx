@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   ComposedChart,
   Line,
@@ -32,8 +32,6 @@ const TF_MINUTES: Record<Timeframe, number> = { '1m': 1, '5m': 5, '15m': 15, '30
 
 interface Props {
   pair: 'bajaj' | 'grasim'
-  mean: number | null
-  stdDev: number | null
   lightMode?: boolean
 }
 
@@ -94,13 +92,14 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   )
 }
 
-export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: Props) {
+export default function IntradaySpreadChart({ pair, lightMode }: Props) {
   const apiBase = pair === 'bajaj' ? '/api/intraday' : '/api/grasim/intraday'
 
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [ticks, setTicks] = useState<Tick[]>([])
   const [timeframe, setTimeframe] = useState<Timeframe>('1m')
   const [loading, setLoading] = useState(false)
+  const [showLines, setShowLines] = useState(true)
 
   const chartColors = lightMode
     ? { grid: '#d1d5db', axisTick: '#374151', axisLine: '#9ca3af', label: '#374151' }
@@ -146,13 +145,31 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
     return () => clearInterval(id)
   }, [selectedDate, fetchTicks])
 
-  // SD values (constant across all chart points)
-  const upper1 = mean != null && stdDev != null ? mean + stdDev : null
-  const lower1 = mean != null && stdDev != null ? mean - stdDev : null
-  const upper2 = mean != null && stdDev != null ? mean + 2 * stdDev : null
-  const lower2 = mean != null && stdDev != null ? mean - 2 * stdDev : null
+  // Intraday session stats — compute mean and SD from the day's actual tick values
+  const intradayStats = useMemo(() => {
+    if (ticks.length === 0) return { mean: null, upper1: null, lower1: null, upper2: null, lower2: null }
+    const values = ticks.map((t) => t.spread_pct)
+    const m = values.reduce((a, b) => a + b, 0) / values.length
+    const variance = values.reduce((a, b) => a + (b - m) ** 2, 0) / values.length
+    const sd = Math.sqrt(variance)
+    return {
+      mean: m,
+      upper1: m + sd,
+      lower1: m - sd,
+      upper2: m + 2 * sd,
+      lower2: m - 2 * sd,
+    }
+  }, [ticks])
 
-  const chartData = aggregate(ticks, TF_MINUTES[timeframe], mean, upper1, lower1, upper2, lower2)
+  const chartData = aggregate(
+    ticks,
+    TF_MINUTES[timeframe],
+    intradayStats.mean,
+    intradayStats.upper1,
+    intradayStats.lower1,
+    intradayStats.upper2,
+    intradayStats.lower2,
+  )
 
   // Y-axis domain — based on spread values only so intraday movement is visible.
   // SD lines are stamped on each point and will render outside the visible area
@@ -187,6 +204,20 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Control Lines toggle */}
+          <button
+            onClick={() => setShowLines((v) => !v)}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors border ${
+              showLines
+                ? 'bg-blue-600 text-white border-blue-600'
+                : lightMode
+                  ? 'border-gray-300 text-slate-500 hover:text-slate-700'
+                  : 'border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+            }`}
+          >
+            Control Lines {showLines ? 'ON' : 'OFF'}
+          </button>
+
           {/* Timeframe pills */}
           <div className="flex gap-1">
             {(['1m', '5m', '15m', '30m', '1h'] as Timeframe[]).map((tf) => (
@@ -248,14 +279,12 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
               />
               <Tooltip content={<CustomTooltip />} />
 
-              {/* Mean line — solid red */}
-              <Line dataKey="mean"   stroke="#ef4444" strokeWidth={1.5} dot={false} activeDot={false} name="mean"   legendType="none" />
-
-              {/* SD lines */}
-              <Line dataKey="upper2" stroke="#22c55e" strokeWidth={1.5} dot={false} activeDot={false} name="upper2" legendType="none" />
-              <Line dataKey="upper1" stroke="#eab308" strokeWidth={1.5} dot={false} activeDot={false} name="upper1" legendType="none" />
-              <Line dataKey="lower1" stroke="#f97316" strokeWidth={1.5} dot={false} activeDot={false} name="lower1" legendType="none" />
-              <Line dataKey="lower2" stroke="#06b6d4" strokeWidth={1.5} dot={false} activeDot={false} name="lower2" legendType="none" />
+              {/* Mean + SD lines — toggled by showLines */}
+              {showLines && <Line dataKey="mean"   stroke="#ef4444" strokeWidth={1.5} dot={false} activeDot={false} name="mean"   legendType="none" />}
+              {showLines && <Line dataKey="upper2" stroke="#22c55e" strokeWidth={1.5} dot={false} activeDot={false} name="upper2" legendType="none" />}
+              {showLines && <Line dataKey="upper1" stroke="#eab308" strokeWidth={1.5} dot={false} activeDot={false} name="upper1" legendType="none" />}
+              {showLines && <Line dataKey="lower1" stroke="#f97316" strokeWidth={1.5} dot={false} activeDot={false} name="lower1" legendType="none" />}
+              {showLines && <Line dataKey="lower2" stroke="#06b6d4" strokeWidth={1.5} dot={false} activeDot={false} name="lower2" legendType="none" />}
 
               {/* Intraday spread line */}
               <Line
@@ -268,11 +297,11 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
               />
 
               {/* Mean μ label */}
-              {mean != null && (
+              {showLines && intradayStats.mean != null && (
                 <ReferenceLine
-                  y={mean}
+                  y={intradayStats.mean}
                   stroke="transparent"
-                  label={{ value: `μ ${mean.toFixed(1)}%`, fill: chartColors.label, fontSize: 10, position: 'insideTopLeft' }}
+                  label={{ value: `μ ${intradayStats.mean.toFixed(1)}%`, fill: chartColors.label, fontSize: 10, position: 'insideTopLeft' }}
                 />
               )}
             </ComposedChart>
@@ -283,11 +312,13 @@ export default function IntradaySpreadChart({ pair, mean, stdDev, lightMode }: P
       {/* Legend */}
       <div className={`flex gap-4 mt-2 text-xs justify-end ${lightMode ? 'text-slate-600' : 'text-slate-500'}`}>
         <span className="flex items-center gap-1"><span className="w-4 h-px bg-blue-500 inline-block" /> Spread</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#ef4444' }} /> Mean</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#22c55e' }} /> +2SD</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#eab308' }} /> +1SD</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#f97316' }} /> −1SD</span>
-        <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#06b6d4' }} /> −2SD</span>
+        {showLines && <>
+          <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#ef4444' }} /> Mean</span>
+          <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#22c55e' }} /> +2SD</span>
+          <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#eab308' }} /> +1SD</span>
+          <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#f97316' }} /> −1SD</span>
+          <span className="flex items-center gap-1"><span className="w-4 h-px inline-block" style={{ backgroundColor: '#06b6d4' }} /> −2SD</span>
+        </>}
       </div>
     </div>
   )
