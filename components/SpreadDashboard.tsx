@@ -14,6 +14,7 @@ import SharesTab from './SharesTab'
 import RulesTab from './RulesTab'
 import ActiveTradeTab from './ActiveTradeTab'
 import PairSwitcher from './PairSwitcher'
+import AlertButton from './AlertButton'
 import TradeSetupTab from './TradeSetupTab'
 import IntradaySpreadChart from './IntradaySpreadChart'
 
@@ -183,6 +184,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                 Reset Rules
               </button>
             )}
+            <AlertButton lightMode={lightMode} />
             <PairSwitcher currentPair="bajaj" />
             <button
               onClick={() => setRollingMode(r => !r)}

@@ -18,6 +18,7 @@ import ActiveTradeTab from './ActiveTradeTab'
 import GrasimTradeSetupTab from './GrasimTradeSetupTab'
 import GrasimSharesTab from './GrasimSharesTab'
 import PairSwitcher from './PairSwitcher'
+import AlertButton from './AlertButton'
 import GrasimDailySpreadTable from './GrasimDailySpreadTable'
 import ForwardReturnsTable from './ForwardReturnsTable'
 import ForwardReturnObservations from './ForwardReturnObservations'
@@ -207,6 +208,7 @@ export default function GrasimDashboard({
               onChange={setSelectedCompanies}
               stakes={currentStakes}
             />
+            <AlertButton lightMode={lightMode} />
             <PairSwitcher currentPair="grasim" />
             <button
               onClick={() => setRollingMode((v) => !v)}

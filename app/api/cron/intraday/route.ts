@@ -6,6 +6,7 @@ import { getApplicableGrasimStakes } from '@/lib/grasim-spread-calculator'
 import { supabase, fetchLatestShares, createServerClient } from '@/lib/supabase'
 import { fetchLatestGrasimShares, fetchGrasimStakes, createServerClient as createGrasimServerClient } from '@/lib/supabase-grasim'
 import { GRASIM_DEFAULT_SELECTION } from '@/types/grasim'
+import { sendSpreadAlert } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +44,8 @@ export async function GET(req: NextRequest) {
 
   const db = createServerClient()
   const errors: string[] = []
+  let bajajSpread: number | null = null
+  let grasimSpread: number | null = null
 
   // ── Bajaj ────────────────────────────────────────────────────────────────
   try {
@@ -63,6 +66,7 @@ export async function GET(req: NextRequest) {
       const finsv_mcap = (dhanPrices.finsv * shares.finsv) / CRORE
       const residual   = finsv_mcap - stake_fraction * fin_mcap
       const spread_pct = finsv_mcap > 0 ? (residual / finsv_mcap) * 100 : 0
+      bajajSpread = spread_pct
 
       const { error } = await db
         .from('intraday_prices')
@@ -102,6 +106,7 @@ export async function GET(req: NextRequest) {
 
       const residual   = grasim_mcap - basket_mcap
       const spread_pct = grasim_mcap > 0 ? (residual / grasim_mcap) * 100 : 0
+      grasimSpread = spread_pct
 
       const grasimDb = createGrasimServerClient()
       const { error } = await grasimDb
@@ -116,6 +121,47 @@ export async function GET(req: NextRequest) {
     }
   } catch (err) {
     errors.push(`grasim: ${String(err)}`)
+  }
+
+  // ── Spread Alerts ─────────────────────────────────────────────────────────
+  try {
+    const { data: activeAlerts } = await supabase
+      .from('spread_alerts')
+      .select('*')
+      .or(`last_fired_date.is.null,last_fired_date.lt.${istDate}`)
+
+    if (activeAlerts && activeAlerts.length > 0) {
+      for (const alert of activeAlerts) {
+        let currentSpread: number | null = null
+        let shouldFire = false
+
+        if (alert.pair === 'bajaj' && bajajSpread != null) {
+          currentSpread = bajajSpread
+          shouldFire = bajajSpread >= alert.threshold_pct
+        } else if (alert.pair === 'grasim' && grasimSpread != null) {
+          currentSpread = grasimSpread
+          shouldFire = grasimSpread >= alert.threshold_pct
+        } else if (alert.pair === 'both') {
+          if (bajajSpread != null && bajajSpread >= alert.threshold_pct) {
+            currentSpread = bajajSpread
+            shouldFire = true
+          } else if (grasimSpread != null && grasimSpread >= alert.threshold_pct) {
+            currentSpread = grasimSpread
+            shouldFire = true
+          }
+        }
+
+        if (shouldFire && currentSpread != null) {
+          await sendSpreadAlert(alert.email, alert.pair, alert.threshold_pct, currentSpread)
+          await supabase
+            .from('spread_alerts')
+            .update({ last_fired_date: istDate })
+            .eq('id', alert.id)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[alerts]', String(err))
   }
 
   if (errors.length > 0) {
