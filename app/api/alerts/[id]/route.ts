@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,7 @@ export async function DELETE(
   const sessionToken = req.headers.get('X-Session-Token') ?? ''
   if (!sessionToken) return NextResponse.json({ error: 'Missing session token' }, { status: 400 })
 
-  const { error } = await supabase
+  const { error } = await createServerClient()
     .from('spread_alerts')
     .delete()
     .eq('id', params.id)

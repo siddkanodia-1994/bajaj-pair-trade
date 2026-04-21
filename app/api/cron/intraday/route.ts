@@ -125,7 +125,8 @@ export async function GET(req: NextRequest) {
 
   // ── Spread Alerts ─────────────────────────────────────────────────────────
   try {
-    const { data: activeAlerts } = await supabase
+    const alertDb = createServerClient()
+    const { data: activeAlerts } = await alertDb
       .from('spread_alerts')
       .select('*')
       .or(`last_fired_date.is.null,last_fired_date.lt.${istDate}`)
@@ -153,7 +154,7 @@ export async function GET(req: NextRequest) {
 
         if (shouldFire && currentSpread != null) {
           await sendSpreadAlert(alert.email, alert.pair, alert.threshold_pct, currentSpread)
-          await supabase
+          await alertDb
             .from('spread_alerts')
             .update({ last_fired_date: istDate })
             .eq('id', alert.id)

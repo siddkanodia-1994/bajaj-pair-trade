@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const sessionToken = req.headers.get('X-Session-Token') ?? ''
   if (!sessionToken) return NextResponse.json({ alerts: [] })
 
-  const { data, error } = await supabase
+  const { data, error } = await createServerClient()
     .from('spread_alerts')
     .select('id, pair, threshold_pct, email, last_fired_date, created_at')
     .eq('session_token', sessionToken)
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await createServerClient()
     .from('spread_alerts')
     .insert({ session_token: sessionToken, pair, threshold_pct, email })
     .select('id, pair, threshold_pct, email, last_fired_date, created_at')
