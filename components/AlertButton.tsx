@@ -7,7 +7,7 @@ interface SpreadAlert {
   id: string
   pair: 'bajaj' | 'grasim' | 'both'
   threshold_pct: number
-  email: string
+  telegram_chat_id: string
   last_fired_date: string | null
   created_at: string
 }
@@ -28,7 +28,7 @@ export default function AlertButton({ lightMode }: Props) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ pair: 'bajaj', threshold: '', email: '' })
+  const [form, setForm] = useState({ pair: 'bajaj', threshold: '', chatId: '' })
   const panelRef = useRef<HTMLDivElement>(null)
 
   const fetchAlerts = useCallback(async () => {
@@ -66,14 +66,14 @@ export default function AlertButton({ lightMode }: Props) {
     setError(null)
     const threshold = parseFloat(form.threshold)
     if (isNaN(threshold)) { setError('Enter a valid spread %'); return }
-    if (!form.email.includes('@')) { setError('Enter a valid email'); return }
+    if (!/^-?\d+$/.test(form.chatId.trim())) { setError('Enter a valid Telegram chat ID (numbers only)'); return }
     const token = getSessionToken()
     setSaving(true)
     try {
       const res = await fetch('/api/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
-        body: JSON.stringify({ pair: form.pair, threshold_pct: threshold, email: form.email }),
+        body: JSON.stringify({ pair: form.pair, threshold_pct: threshold, telegram_chat_id: form.chatId.trim() }),
       })
       if (!res.ok) {
         const d = await res.json()
@@ -82,7 +82,7 @@ export default function AlertButton({ lightMode }: Props) {
       }
       const d = await res.json()
       setAlerts((prev) => [d.alert, ...prev])
-      setForm((f) => ({ ...f, threshold: '', email: '' }))
+      setForm((f) => ({ ...f, threshold: '', chatId: '' }))
     } catch {
       setError('Network error')
     } finally {
@@ -178,14 +178,21 @@ export default function AlertButton({ lightMode }: Props) {
                 <span className="text-slate-400 text-xs">%</span>
               </div>
 
-              {/* Email input */}
-              <input
-                type="email"
-                placeholder="your@email.com"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-              />
+              {/* Telegram chat ID input */}
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  placeholder="Your Telegram chat ID"
+                  value={form.chatId}
+                  onChange={(e) => setForm((f) => ({ ...f, chatId: e.target.value }))}
+                  className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Message{' '}
+                  <span className="text-blue-400">@userinfobot</span>
+                  {' '}on Telegram to get your chat ID
+                </p>
+              </div>
 
               {error && <p className="text-red-400 text-[11px]">{error}</p>}
 
@@ -219,7 +226,7 @@ export default function AlertButton({ lightMode }: Props) {
                     <span className="text-slate-200 text-xs font-medium">
                       {PAIR_LABELS[a.pair]} ≥ {a.threshold_pct.toFixed(2)}%
                     </span>
-                    <p className="text-slate-500 text-[11px] truncate">{a.email}</p>
+                    <p className="text-slate-500 text-[11px] truncate">ID: {a.telegram_chat_id}</p>
                     {a.last_fired_date && (
                       <p className="text-blue-400 text-[10px]">Last fired: {a.last_fired_date}</p>
                     )}

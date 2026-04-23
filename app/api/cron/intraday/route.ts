@@ -6,7 +6,7 @@ import { getApplicableGrasimStakes } from '@/lib/grasim-spread-calculator'
 import { supabase, fetchLatestShares, createServerClient } from '@/lib/supabase'
 import { fetchLatestGrasimShares, fetchGrasimStakes, createServerClient as createGrasimServerClient } from '@/lib/supabase-grasim'
 import { GRASIM_DEFAULT_SELECTION } from '@/types/grasim'
-import { sendSpreadAlert } from '@/lib/email'
+import { sendTelegramAlert } from '@/lib/telegram'
 
 export const dynamic = 'force-dynamic'
 
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (shouldFire && currentSpread != null) {
-          await sendSpreadAlert(alert.email, alert.pair, alert.threshold_pct, currentSpread)
+          await sendTelegramAlert(alert.telegram_chat_id, alert.pair, alert.threshold_pct, currentSpread)
           await alertDb
             .from('spread_alerts')
             .update({ last_fired_date: istDate })
