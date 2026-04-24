@@ -36,7 +36,7 @@ export default function AlertButton({ lightMode }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
     pair: 'bajaj',
-    operator: '>=',
+    operator: '<=',
     metric: 'spread_pct',
     windowKey: '1Y',
     threshold: '',
