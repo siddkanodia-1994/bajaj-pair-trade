@@ -129,9 +129,9 @@ export default function SpreadChart({ series, selectedWindow, onWindowChange, li
     }
   }
 
-  // Thin data for performance (max 500 points) — only needed for 3Y+
-  const thinned = chartData.length > 500
-    ? chartData.filter((_, i) => i % Math.ceil(chartData.length / 500) === 0 || i === chartData.length - 1)
+  // Thin data for performance — threshold 1500 keeps all points for every window up to 5Y
+  const thinned = chartData.length > 1500
+    ? chartData.filter((_, i) => i % Math.ceil(chartData.length / 1500) === 0 || i === chartData.length - 1)
     : chartData
 
   // Y-axis domain
