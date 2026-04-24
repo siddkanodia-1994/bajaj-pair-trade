@@ -408,8 +408,12 @@ export function getExitBasedObservations(
         : entryZ >= lastEntryZ + rules.add_to_trade_gap
       if (!movedFurther) continue
     } else {
-      // Fresh entry — must be within entry band of current z-score
-      if (Math.abs(entryZ - currentZscore) > rules.entry_band) continue
+      // Fresh entry — exclude only if less extreme than the band allows
+      // (entries more extreme than current z-score are always valid analogs)
+      const tooFarFromBand = direction === 'long'
+        ? entryZ > currentZscore + rules.entry_band
+        : entryZ < currentZscore - rules.entry_band
+      if (tooFarFromBand) continue
     }
 
     const exitResult = findExit(series, getZ, i, timeStop, direction, rules)
