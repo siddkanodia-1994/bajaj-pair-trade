@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDhanLivePrices } from '@/lib/dhan'
 import { getDhanGrasimPrices } from '@/lib/dhan-grasim'
-import { getApplicableStake } from '@/lib/spread-calculator'
+import { getApplicableStake, computeFixedWindowStats } from '@/lib/spread-calculator'
 import { getApplicableGrasimStakes } from '@/lib/grasim-spread-calculator'
 import { supabase, fetchLatestShares, createServerClient } from '@/lib/supabase'
 import { fetchLatestGrasimShares, fetchGrasimStakes, createServerClient as createGrasimServerClient } from '@/lib/supabase-grasim'
 import { GRASIM_DEFAULT_SELECTION } from '@/types/grasim'
+import type { GrasimStakeRow } from '@/types/grasim'
+import type { StakeHistoryRow } from '@/types'
 import { sendTelegramAlert } from '@/lib/telegram'
 
 export const dynamic = 'force-dynamic'
 
 const CRORE = 10_000_000
+
+// Map window key → approximate trading days for z-score historical fetch
+const WINDOW_TRADING_DAYS: Record<string, number> = {
+  '1Y': 260, '2Y': 520, '3Y': 780, '4Y': 1040, '5Y': 1300,
+}
+
+// Mcap field names for Grasim subsidiaries (mirrors MCAP_FIELD in grasim-spread-calculator)
+const GRASIM_MCAP_FIELDS: Record<string, string> = {
+  ULTRACEMCO: 'ultracemco_mcap',
+  ABCAPITAL:  'abcapital_mcap',
+  IDEA:       'idea_mcap',
+  HINDALCO:   'hindalco_mcap',
+  ABFRL:      'abfrl_mcap',
+  ABLBL:      'ablbl_mcap',
+}
 
 /** NSE market hours: 9:15 AM – 3:30 PM IST, Mon–Fri */
 function isMarketOpen(): boolean {
@@ -20,6 +37,10 @@ function isMarketOpen(): boolean {
   if (day === 0 || day === 6) return false
   const totalMinutes = ist.getUTCHours() * 60 + ist.getUTCMinutes()
   return totalMinutes >= 9 * 60 + 15 && totalMinutes <= 15 * 60 + 30
+}
+
+function meetsCondition(value: number, op: string, threshold: number): boolean {
+  return op === '<=' ? value <= threshold : value >= threshold
 }
 
 export async function GET(req: NextRequest) {
@@ -46,6 +67,8 @@ export async function GET(req: NextRequest) {
   const errors: string[] = []
   let bajajSpread: number | null = null
   let grasimSpread: number | null = null
+  let bajajStakes: StakeHistoryRow[] | null = null
+  let grasimStakesData: GrasimStakeRow[] | null = null
 
   // ── Bajaj ────────────────────────────────────────────────────────────────
   try {
@@ -58,6 +81,8 @@ export async function GET(req: NextRequest) {
         .order('quarter_end_date', { ascending: false })
         .limit(10),
     ])
+
+    bajajStakes = stakes ?? null
 
     if (dhanPrices.fin > 0 && dhanPrices.finsv > 0 && shares.fin > 0 && shares.finsv > 0) {
       const stake_pct = getApplicableStake(istDate, stakes ?? [])
@@ -91,6 +116,8 @@ export async function GET(req: NextRequest) {
       fetchLatestGrasimShares(),
       fetchGrasimStakes(),
     ])
+
+    grasimStakesData = stakes
 
     if (grasimPrices.GRASIM > 0) {
       const stakeMap = getApplicableGrasimStakes(istDate, stakes, GRASIM_DEFAULT_SELECTION)
@@ -132,28 +159,108 @@ export async function GET(req: NextRequest) {
       .or(`last_fired_date.is.null,last_fired_date.lt.${istDate}`)
 
     if (activeAlerts && activeAlerts.length > 0) {
-      for (const alert of activeAlerts) {
-        let currentSpread: number | null = null
-        let shouldFire = false
+      // ── Pre-compute z-scores if any alert needs them ──────────────────────
+      const bajajZscores: Record<string, number | null> = {}
+      const grasimZscores: Record<string, number | null> = {}
 
-        if (alert.pair === 'bajaj' && bajajSpread != null) {
-          currentSpread = bajajSpread
-          shouldFire = bajajSpread >= alert.threshold_pct
-        } else if (alert.pair === 'grasim' && grasimSpread != null) {
-          currentSpread = grasimSpread
-          shouldFire = grasimSpread >= alert.threshold_pct
+      const zscoreAlerts = activeAlerts.filter((a) => a.metric === 'zscore')
+
+      // Bajaj z-scores
+      if (bajajSpread != null && bajajStakes != null && zscoreAlerts.some((a) => a.pair !== 'grasim')) {
+        const neededWindows = [...new Set(
+          zscoreAlerts
+            .filter((a) => a.pair === 'bajaj' || a.pair === 'both')
+            .map((a) => a.window_key ?? '1Y')
+        )]
+        if (neededWindows.length > 0) {
+          const maxRows = Math.max(...neededWindows.map((w) => WINDOW_TRADING_DAYS[w] ?? 260))
+          const { data: eodRows } = await alertDb
+            .from('eod_prices')
+            .select('date, fin_mcap, finsv_mcap')
+            .order('date', { ascending: false })
+            .limit(maxRows)
+
+          if (eodRows && eodRows.length >= 2) {
+            const spreads = [...eodRows].reverse().map((row) => {
+              const stakePct = getApplicableStake(row.date, bajajStakes!)
+              const stakeFrac = stakePct / 100
+              return row.finsv_mcap > 0
+                ? ((row.finsv_mcap - stakeFrac * row.fin_mcap) / row.finsv_mcap) * 100
+                : 0
+            })
+            for (const wKey of neededWindows) {
+              const wRows = WINDOW_TRADING_DAYS[wKey] ?? 260
+              const slice = spreads.slice(-wRows)
+              bajajZscores[wKey] = computeFixedWindowStats(slice, bajajSpread).zscore
+            }
+          }
+        }
+      }
+
+      // Grasim z-scores
+      if (grasimSpread != null && grasimStakesData != null && zscoreAlerts.some((a) => a.pair !== 'bajaj')) {
+        const neededWindows = [...new Set(
+          zscoreAlerts
+            .filter((a) => a.pair === 'grasim' || a.pair === 'both')
+            .map((a) => a.window_key ?? '1Y')
+        )]
+        if (neededWindows.length > 0) {
+          const maxRows = Math.max(...neededWindows.map((w) => WINDOW_TRADING_DAYS[w] ?? 260))
+          const { data: grasimEodRows } = await createGrasimServerClient()
+            .from('grasim_eod_prices')
+            .select('*')
+            .order('date', { ascending: false })
+            .limit(maxRows)
+
+          if (grasimEodRows && grasimEodRows.length >= 2) {
+            const spreads = [...grasimEodRows].reverse().map((row) => {
+              const stakeMap = getApplicableGrasimStakes(row.date, grasimStakesData!, GRASIM_DEFAULT_SELECTION)
+              let basket_mcap = 0
+              for (const company of GRASIM_DEFAULT_SELECTION) {
+                const stakePct = stakeMap[company] ?? 0
+                const mcap = (row as Record<string, number>)[GRASIM_MCAP_FIELDS[company]] ?? 0
+                basket_mcap += (stakePct / 100) * mcap
+              }
+              return row.grasim_mcap > 0
+                ? ((row.grasim_mcap - basket_mcap) / row.grasim_mcap) * 100
+                : 0
+            })
+            for (const wKey of neededWindows) {
+              const wRows = WINDOW_TRADING_DAYS[wKey] ?? 260
+              const slice = spreads.slice(-wRows)
+              grasimZscores[wKey] = computeFixedWindowStats(slice, grasimSpread).zscore
+            }
+          }
+        }
+      }
+
+      // ── Evaluate each alert ───────────────────────────────────────────────
+      for (const alert of activeAlerts) {
+        const op     = alert.operator   ?? '>='
+        const metric = alert.metric     ?? 'spread_pct'
+        const wKey   = alert.window_key ?? '1Y'
+
+        let shouldFire = false
+        let currentValue: number | null = null
+
+        if (alert.pair === 'bajaj') {
+          const val = metric === 'zscore' ? (bajajZscores[wKey] ?? null) : bajajSpread
+          if (val != null) { shouldFire = meetsCondition(val, op, alert.threshold_pct); currentValue = val }
+        } else if (alert.pair === 'grasim') {
+          const val = metric === 'zscore' ? (grasimZscores[wKey] ?? null) : grasimSpread
+          if (val != null) { shouldFire = meetsCondition(val, op, alert.threshold_pct); currentValue = val }
         } else if (alert.pair === 'both') {
-          if (bajajSpread != null && bajajSpread >= alert.threshold_pct) {
-            currentSpread = bajajSpread
-            shouldFire = true
-          } else if (grasimSpread != null && grasimSpread >= alert.threshold_pct) {
-            currentSpread = grasimSpread
-            shouldFire = true
+          const bajajVal  = metric === 'zscore' ? (bajajZscores[wKey]  ?? null) : bajajSpread
+          const grasimVal = metric === 'zscore' ? (grasimZscores[wKey] ?? null) : grasimSpread
+          if (bajajVal != null && meetsCondition(bajajVal, op, alert.threshold_pct)) {
+            shouldFire = true; currentValue = bajajVal
+          } else if (grasimVal != null && meetsCondition(grasimVal, op, alert.threshold_pct)) {
+            shouldFire = true; currentValue = grasimVal
           }
         }
 
-        if (shouldFire && currentSpread != null) {
-          await sendTelegramAlert(alert.telegram_chat_id, alert.pair, alert.threshold_pct, currentSpread)
+        if (shouldFire && currentValue != null) {
+          await sendTelegramAlert(alert.telegram_chat_id, alert.pair, alert.threshold_pct, currentValue, op, metric)
           await alertDb
             .from('spread_alerts')
             .update({ last_fired_date: istDate })

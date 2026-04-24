@@ -10,16 +10,27 @@ export async function sendTelegramAlert(
   chatId: string,
   pair: string,
   threshold: number,
-  currentSpread: number,
+  currentValue: number,
+  operator = '>=',
+  metric = 'spread_pct',
 ) {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN not set')
 
   const label = PAIR_LABELS[pair] ?? pair
+  const opLabel = operator === '<=' ? '≤' : '≥'
+  const valueStr = metric === 'zscore'
+    ? `*${currentValue.toFixed(2)}*`
+    : `*${currentValue.toFixed(2)}%*`
+  const thresholdStr = metric === 'zscore'
+    ? `${opLabel} ${threshold.toFixed(2)}`
+    : `${opLabel} ${threshold.toFixed(2)}%`
+  const metricLabel = metric === 'zscore' ? 'Z-score' : 'Spread'
+
   const text =
-    `🔔 *Spread Alert — ${label}*\n\n` +
-    `Current spread: *${currentSpread.toFixed(2)}%*\n` +
-    `Threshold: ≥ ${threshold.toFixed(2)}%\n\n` +
+    `🔔 *${metricLabel} Alert — ${label}*\n\n` +
+    `Current ${metricLabel.toLowerCase()}: ${valueStr}\n` +
+    `Threshold: ${thresholdStr}\n\n` +
     `[View Dashboard](${DASHBOARD_URL})`
 
   const res = await fetch(

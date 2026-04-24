@@ -10,6 +10,9 @@ interface SpreadAlert {
   telegram_chat_id: string
   last_fired_date: string | null
   created_at: string
+  operator: string
+  metric: string
+  window_key: string
 }
 
 interface Props {
@@ -22,13 +25,23 @@ const PAIR_LABELS: Record<string, string> = {
   both: 'Both',
 }
 
+const CHAT_ID_KEY = 'bajaj_alert_chat_id'
+const WINDOW_KEYS = ['1Y', '2Y', '3Y', '4Y', '5Y'] as const
+
 export default function AlertButton({ lightMode }: Props) {
   const [open, setOpen] = useState(false)
   const [alerts, setAlerts] = useState<SpreadAlert[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ pair: 'bajaj', threshold: '', chatId: '' })
+  const [form, setForm] = useState({
+    pair: 'bajaj',
+    operator: '>=',
+    metric: 'spread_pct',
+    windowKey: '1Y',
+    threshold: '',
+    chatId: '',
+  })
   const panelRef = useRef<HTMLDivElement>(null)
 
   const fetchAlerts = useCallback(async () => {
@@ -46,8 +59,13 @@ export default function AlertButton({ lightMode }: Props) {
     }
   }, [])
 
+  // Pre-fill chatId from localStorage when opening
   useEffect(() => {
-    if (open) fetchAlerts()
+    if (open) {
+      fetchAlerts()
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(CHAT_ID_KEY) : null
+      if (saved) setForm((f) => f.chatId ? f : { ...f, chatId: saved })
+    }
   }, [open, fetchAlerts])
 
   // Close on outside click
@@ -65,7 +83,7 @@ export default function AlertButton({ lightMode }: Props) {
     e.preventDefault()
     setError(null)
     const threshold = parseFloat(form.threshold)
-    if (isNaN(threshold)) { setError('Enter a valid spread %'); return }
+    if (isNaN(threshold)) { setError('Enter a valid threshold'); return }
     if (!/^-?\d+$/.test(form.chatId.trim())) { setError('Enter a valid Telegram chat ID (numbers only)'); return }
     const token = getSessionToken()
     setSaving(true)
@@ -73,7 +91,14 @@ export default function AlertButton({ lightMode }: Props) {
       const res = await fetch('/api/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
-        body: JSON.stringify({ pair: form.pair, threshold_pct: threshold, telegram_chat_id: form.chatId.trim() }),
+        body: JSON.stringify({
+          pair: form.pair,
+          threshold_pct: threshold,
+          telegram_chat_id: form.chatId.trim(),
+          operator: form.operator,
+          metric: form.metric,
+          window_key: form.windowKey,
+        }),
       })
       if (!res.ok) {
         const d = await res.json()
@@ -82,7 +107,9 @@ export default function AlertButton({ lightMode }: Props) {
       }
       const d = await res.json()
       setAlerts((prev) => [d.alert, ...prev])
-      setForm((f) => ({ ...f, threshold: '', chatId: '' }))
+      // Persist chatId to localStorage; only clear threshold
+      localStorage.setItem(CHAT_ID_KEY, form.chatId.trim())
+      setForm((f) => ({ ...f, threshold: '' }))
     } catch {
       setError('Network error')
     } finally {
@@ -105,8 +132,25 @@ export default function AlertButton({ lightMode }: Props) {
 
   const count = alerts.length
 
-  // Pill styling matches PairSwitcher
   const pillStyle = { backgroundColor: '#1e293b', border: '1px solid #475569', color: '#94a3b8' }
+
+  function pillBtn(active: boolean) {
+    return {
+      backgroundColor: active ? '#3b82f6' : 'transparent',
+      color: active ? '#fff' : '#94a3b8',
+      border: `1px solid ${active ? '#3b82f6' : '#334155'}`,
+    }
+  }
+
+  function alertLabel(a: SpreadAlert) {
+    const op = a.operator === '<=' ? '≤' : '≥'
+    const isZscore = a.metric === 'zscore'
+    const value = isZscore
+      ? `${op} ${a.threshold_pct.toFixed(2)}`
+      : `${op} ${a.threshold_pct.toFixed(2)}%`
+    const metricTag = isZscore ? ` Z-score (${a.window_key ?? '1Y'})` : ' Spread'
+    return `${PAIR_LABELS[a.pair]}${metricTag} ${value}`
+  }
 
   return (
     <div className="relative" ref={panelRef}>
@@ -117,7 +161,6 @@ export default function AlertButton({ lightMode }: Props) {
         style={pillStyle}
         title="Spread alerts"
       >
-        {/* Bell icon */}
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-9.33-4.993A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -153,32 +196,74 @@ export default function AlertButton({ lightMode }: Props) {
                     type="button"
                     onClick={() => setForm((f) => ({ ...f, pair: p }))}
                     className="flex-1 py-1 rounded text-xs font-medium transition-colors"
-                    style={
-                      form.pair === p
-                        ? { backgroundColor: '#3b82f6', color: '#fff', border: '1px solid #3b82f6' }
-                        : { backgroundColor: 'transparent', color: '#94a3b8', border: '1px solid #334155' }
-                    }
+                    style={pillBtn(form.pair === p)}
                   >
                     {PAIR_LABELS[p]}
                   </button>
                 ))}
               </div>
 
-              {/* Threshold input */}
+              {/* Metric selector */}
+              <div className="flex gap-1.5">
+                {(['spread_pct', 'zscore'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, metric: m }))}
+                    className="flex-1 py-1 rounded text-xs font-medium transition-colors"
+                    style={pillBtn(form.metric === m)}
+                  >
+                    {m === 'spread_pct' ? 'Spread %' : 'Z-score'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Window selector — only for Z-score */}
+              {form.metric === 'zscore' && (
+                <div className="flex gap-1">
+                  {WINDOW_KEYS.map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, windowKey: w }))}
+                      className="flex-1 py-0.5 rounded text-[11px] font-medium transition-colors"
+                      style={pillBtn(form.windowKey === w)}
+                    >
+                      {w}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Operator + threshold */}
               <div className="flex items-center gap-2">
-                <span className="text-slate-400 text-xs font-mono w-5 shrink-0">≥</span>
+                <div className="flex gap-1 shrink-0">
+                  {(['>=', '<='] as const).map((op) => (
+                    <button
+                      key={op}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, operator: op }))}
+                      className="w-7 py-1 rounded text-xs font-mono font-medium transition-colors"
+                      style={pillBtn(form.operator === op)}
+                    >
+                      {op === '>=' ? '≥' : '≤'}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="-2.50"
+                  placeholder={form.metric === 'zscore' ? '-2.00' : '-2.50'}
                   value={form.threshold}
                   onChange={(e) => setForm((f) => ({ ...f, threshold: e.target.value }))}
                   className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
-                <span className="text-slate-400 text-xs">%</span>
+                <span className="text-slate-400 text-xs shrink-0">
+                  {form.metric === 'zscore' ? 'σ' : '%'}
+                </span>
               </div>
 
-              {/* Telegram chat ID input */}
+              {/* Telegram chat ID */}
               <div className="space-y-1">
                 <input
                   type="text"
@@ -224,7 +309,7 @@ export default function AlertButton({ lightMode }: Props) {
                 >
                   <div className="min-w-0">
                     <span className="text-slate-200 text-xs font-medium">
-                      {PAIR_LABELS[a.pair]} ≥ {a.threshold_pct.toFixed(2)}%
+                      {alertLabel(a)}
                     </span>
                     <p className="text-slate-500 text-[11px] truncate">ID: {a.telegram_chat_id}</p>
                     {a.last_fired_date && (
