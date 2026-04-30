@@ -2,6 +2,13 @@ import type { Signal, SignalType, TradingRules } from '@/types'
 import { DEFAULT_RULES } from '@/types'
 
 const SIGNALS: Record<SignalType, Omit<Signal, 'zscore'>> = {
+  CAUTION_LONG: {
+    type: 'CAUTION_LONG',
+    label: 'CAUTION',
+    description: 'Z-score beyond hard stop threshold — possible structural break',
+    tailwindColor: 'text-amber-400',
+    hexColor: '#fbbf24',
+  },
   STRONG_LONG: {
     type: 'STRONG_LONG',
     label: 'STRONG LONG',
@@ -37,12 +44,23 @@ const SIGNALS: Record<SignalType, Omit<Signal, 'zscore'>> = {
     tailwindColor: 'text-red-400',
     hexColor: '#f87171',
   },
+  CAUTION_SHORT: {
+    type: 'CAUTION_SHORT',
+    label: 'CAUTION',
+    description: 'Z-score beyond hard stop threshold — possible structural break',
+    tailwindColor: 'text-amber-400',
+    hexColor: '#fbbf24',
+  },
 }
 
 export function generateSignal(zscore: number | null, rules: TradingRules = DEFAULT_RULES): Signal {
   let type: SignalType
   if (zscore === null) {
     type = 'HOLD'
+  } else if (zscore <= -rules.hard_stop_z) {
+    type = 'CAUTION_LONG'
+  } else if (zscore >= rules.hard_stop_z) {
+    type = 'CAUTION_SHORT'
   } else if (zscore <= rules.strong_long_threshold) {
     type = 'STRONG_LONG'
   } else if (zscore <= rules.long_threshold) {
@@ -60,11 +78,13 @@ export function generateSignal(zscore: number | null, rules: TradingRules = DEFA
 /** Signal border color for cards */
 export function signalBorderColor(type: SignalType): string {
   const map: Record<SignalType, string> = {
-    STRONG_LONG:  'border-green-500',
-    LONG:         'border-green-400/60',
-    HOLD:         'border-slate-600',
-    SHORT:        'border-red-400/60',
-    STRONG_SHORT: 'border-red-500',
+    CAUTION_LONG:  'border-amber-500',
+    STRONG_LONG:   'border-green-500',
+    LONG:          'border-green-400/60',
+    HOLD:          'border-slate-600',
+    SHORT:         'border-red-400/60',
+    STRONG_SHORT:  'border-red-500',
+    CAUTION_SHORT: 'border-amber-500',
   }
   return map[type]
 }
@@ -72,11 +92,13 @@ export function signalBorderColor(type: SignalType): string {
 /** Signal background glow for cards */
 export function signalBgColor(type: SignalType): string {
   const map: Record<SignalType, string> = {
-    STRONG_LONG:  'bg-green-950/40',
-    LONG:         'bg-green-950/20',
-    HOLD:         'bg-slate-800/40',
-    SHORT:        'bg-red-950/20',
-    STRONG_SHORT: 'bg-red-950/40',
+    CAUTION_LONG:  'bg-amber-950/30',
+    STRONG_LONG:   'bg-green-950/40',
+    LONG:          'bg-green-950/20',
+    HOLD:          'bg-slate-800/40',
+    SHORT:         'bg-red-950/20',
+    STRONG_SHORT:  'bg-red-950/40',
+    CAUTION_SHORT: 'bg-amber-950/30',
   }
   return map[type]
 }

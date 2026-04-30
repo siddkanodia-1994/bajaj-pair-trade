@@ -96,11 +96,13 @@ export default function LiveSpreadBanner({ initialData, spreadSeries, selectedWi
   const signal = generateSignal(liveZscore, rules)
 
   const signalBgMap: Record<string, string> = {
-    STRONG_LONG:  'bg-green-500/10 border-green-500',
-    LONG:         'bg-green-500/5 border-green-400/50',
-    HOLD:         'bg-slate-700/30 border-slate-600',
-    SHORT:        'bg-red-500/5 border-red-400/50',
-    STRONG_SHORT: 'bg-red-500/10 border-red-500',
+    CAUTION_LONG:  'bg-amber-500/10 border-amber-500',
+    STRONG_LONG:   'bg-green-500/10 border-green-500',
+    LONG:          'bg-green-500/5 border-green-400/50',
+    HOLD:          'bg-slate-700/30 border-slate-600',
+    SHORT:         'bg-red-500/5 border-red-400/50',
+    STRONG_SHORT:  'bg-red-500/10 border-red-500',
+    CAUTION_SHORT: 'bg-amber-500/10 border-amber-500',
   }
 
   // EOD fallback: last_updated is "YYYY-MM-DD" (10 chars); live is a full ISO timestamp

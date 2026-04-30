@@ -83,7 +83,7 @@ export interface LiveSpreadData {
   as_of: string
 }
 
-export type SignalType = 'STRONG_LONG' | 'LONG' | 'HOLD' | 'SHORT' | 'STRONG_SHORT'
+export type SignalType = 'CAUTION_LONG' | 'STRONG_LONG' | 'LONG' | 'HOLD' | 'SHORT' | 'STRONG_SHORT' | 'CAUTION_SHORT'
 
 export interface Signal {
   type: SignalType
