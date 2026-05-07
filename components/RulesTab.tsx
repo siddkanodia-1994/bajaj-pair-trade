@@ -10,6 +10,7 @@ interface Props {
   onRulesChange: (rules: TradingRules) => void
   apiPath?: string       // default: '/api/rules'
   storageKey?: string    // default: 'bajaj_rule_overrides'
+  pair?: 'bajaj' | 'grasim'
 }
 
 // Inline editable number field — saves on blur or Enter
@@ -94,7 +95,9 @@ function Section({ title, description, children }: { title: string; description?
   )
 }
 
-export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/api/rules', storageKey = 'bajaj_rule_overrides' }: Props) {
+export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/api/rules', storageKey = 'bajaj_rule_overrides', pair = 'bajaj' }: Props) {
+  const longDesc  = pair === 'grasim' ? 'Long GRASIM / Short Subsidiaries'  : '{longDesc}'
+  const shortDesc = pair === 'grasim' ? 'Short GRASIM / Long Subsidiaries'  : '{shortDesc}'
   const localOverrides = getLocalRuleOverrides(storageKey)
 
   const handleSave = useCallback(async (key: string, val: number) => {
@@ -159,7 +162,7 @@ export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/ap
             <tr>
               <td className="py-3">
                 <span className="text-green-400 font-semibold">STRONG LONG</span>
-                <div className="text-xs text-slate-500">Long BAJAJFINSV / Short BAJFINANCE</div>
+                <div className="text-xs text-slate-500">{longDesc}</div>
               </td>
               <td className="text-right py-3">
                 <RuleField value={rules.strong_long_threshold} ruleKey="strong_long_threshold" isOverridden={isOv('strong_long_threshold')} onSave={handleSave} />
@@ -174,7 +177,7 @@ export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/ap
             <tr>
               <td className="py-3">
                 <span className="text-green-300 font-semibold">LONG</span>
-                <div className="text-xs text-slate-500">Long BAJAJFINSV / Short BAJFINANCE</div>
+                <div className="text-xs text-slate-500">{longDesc}</div>
               </td>
               <td className="text-right py-3">
                 <RuleField value={rules.long_threshold} ruleKey="long_threshold" isOverridden={isOv('long_threshold')} onSave={handleSave} />
@@ -198,7 +201,7 @@ export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/ap
             <tr>
               <td className="py-3">
                 <span className="text-red-300 font-semibold">SHORT</span>
-                <div className="text-xs text-slate-500">Short BAJAJFINSV / Long BAJFINANCE</div>
+                <div className="text-xs text-slate-500">{shortDesc}</div>
               </td>
               <td className="text-right py-3">
                 <RuleField value={rules.short_threshold} ruleKey="short_threshold" isOverridden={isOv('short_threshold')} onSave={handleSave} />
@@ -211,7 +214,7 @@ export default function RulesTab({ rules, isOwner, onRulesChange, apiPath = '/ap
             <tr>
               <td className="py-3">
                 <span className="text-red-400 font-semibold">STRONG SHORT</span>
-                <div className="text-xs text-slate-500">Short BAJAJFINSV / Long BAJFINANCE</div>
+                <div className="text-xs text-slate-500">{shortDesc}</div>
               </td>
               <td className="text-right py-3">
                 <RuleField value={rules.strong_short_threshold} ruleKey="strong_short_threshold" isOverridden={isOv('strong_short_threshold')} onSave={handleSave} />

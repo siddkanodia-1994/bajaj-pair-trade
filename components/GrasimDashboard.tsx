@@ -383,6 +383,7 @@ export default function GrasimDashboard({
               onRulesChange={handleRulesChange}
               apiPath="/api/grasim/rules"
               storageKey="grasim_rule_overrides"
+              pair="grasim"
             />
           </div>
         )}
