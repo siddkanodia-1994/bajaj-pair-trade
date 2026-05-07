@@ -158,7 +158,13 @@ export default function GrasimLiveBanner({
           <div className="text-right">
             <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Signal ({selectedWindow})</div>
             <div className={`text-2xl font-bold ${signal.tailwindColor}`}>{signal.label}</div>
-            <div className="text-sm text-slate-400 mt-0.5">{signal.description}</div>
+            <div className="text-sm text-slate-400 mt-0.5">
+              {signal.type === 'CAUTION_LONG' || signal.type === 'STRONG_LONG' || signal.type === 'LONG'
+                ? 'Long GRASIM / Short Subsidiaries'
+                : signal.type === 'CAUTION_SHORT' || signal.type === 'STRONG_SHORT' || signal.type === 'SHORT'
+                  ? 'Short GRASIM / Long Subsidiaries'
+                  : signal.description}
+            </div>
           </div>
         </div>
 
