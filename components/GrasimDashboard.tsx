@@ -282,6 +282,8 @@ export default function GrasimDashboard({
             <IntradaySpreadChart
               pair="grasim"
               lightMode={lightMode}
+              selectedCompanies={selectedCompanies}
+              stakes={currentStakes}
             />
 
             <ForwardReturnsTable

@@ -124,16 +124,22 @@ export async function GET(req: NextRequest) {
       const grasim_mcap = (grasimPrices.GRASIM * (shares['GRASIM'] ?? 0)) / CRORE
 
       let basket_mcap = 0
+      const companyMcaps: Record<string, number> = {}
       for (const company of GRASIM_DEFAULT_SELECTION) {
         const shareCount = shares[company] ?? 0
         const price      = grasimPrices[company as keyof typeof grasimPrices] ?? 0
         const mcap       = shareCount > 0 ? (price * shareCount) / CRORE : 0
+        companyMcaps[company] = mcap
         basket_mcap += ((stakeMap[company] ?? 0) / 100) * mcap
       }
 
       const residual   = grasim_mcap - basket_mcap
       const spread_pct = grasim_mcap > 0 ? (residual / grasim_mcap) * 100 : 0
       grasimSpread = spread_pct
+
+      const subsidiaryMcapFields = Object.fromEntries(
+        Object.entries(GRASIM_MCAP_FIELDS).map(([company, field]) => [field, companyMcaps[company] ?? 0])
+      )
 
       const grasimDb = createGrasimServerClient()
       const { error } = await grasimDb
@@ -142,6 +148,8 @@ export async function GET(req: NextRequest) {
           date:      istDate,
           tick_time: tickTime,
           spread_pct,
+          grasim_mcap,
+          ...subsidiaryMcapFields,
         }], { onConflict: 'tick_time' })
 
       if (error) errors.push(`grasim: ${error.message}`)

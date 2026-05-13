@@ -11,10 +11,29 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
+import type { GrasimSubsidiary, GrasimStakeRow } from '@/types/grasim'
+import { GRASIM_DEFAULT_SELECTION } from '@/types/grasim'
+import { getApplicableGrasimStakes } from '@/lib/grasim-spread-calculator'
+
+const GRASIM_MCAP_FIELD_MAP: Record<string, string> = {
+  ULTRACEMCO: 'ultracemco_mcap',
+  ABCAPITAL:  'abcapital_mcap',
+  IDEA:       'idea_mcap',
+  HINDALCO:   'hindalco_mcap',
+  ABFRL:      'abfrl_mcap',
+  ABLBL:      'ablbl_mcap',
+}
 
 interface Tick {
   time: string      // HH:MM
   spread_pct: number
+  grasim_mcap?: number | null
+  ultracemco_mcap?: number | null
+  abcapital_mcap?: number | null
+  idea_mcap?: number | null
+  hindalco_mcap?: number | null
+  abfrl_mcap?: number | null
+  ablbl_mcap?: number | null
 }
 
 interface ChartPoint {
@@ -33,6 +52,8 @@ const TF_MINUTES: Record<Timeframe, number> = { '1m': 1, '5m': 5, '15m': 15, '30
 interface Props {
   pair: 'bajaj' | 'grasim'
   lightMode?: boolean
+  selectedCompanies?: GrasimSubsidiary[]
+  stakes?: GrasimStakeRow[]
 }
 
 function isMarketOpen(): boolean {
@@ -92,7 +113,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   )
 }
 
-export default function IntradaySpreadChart({ pair, lightMode }: Props) {
+export default function IntradaySpreadChart({ pair, lightMode, selectedCompanies, stakes }: Props) {
   const apiBase = pair === 'bajaj' ? '/api/intraday' : '/api/grasim/intraday'
 
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -145,10 +166,40 @@ export default function IntradaySpreadChart({ pair, lightMode }: Props) {
     return () => clearInterval(id)
   }, [selectedDate, fetchTicks])
 
+  // For Grasim: recompute spread per tick when basket differs from default
+  const activeTicks = useMemo(() => {
+    if (
+      pair !== 'grasim' ||
+      !selectedCompanies ||
+      !stakes ||
+      ticks.length === 0
+    ) return ticks
+
+    const isDefault =
+      selectedCompanies.length === GRASIM_DEFAULT_SELECTION.length &&
+      selectedCompanies.every((c) => GRASIM_DEFAULT_SELECTION.includes(c))
+    if (isDefault) return ticks
+
+    return ticks.map((tick) => {
+      if (tick.grasim_mcap == null) return tick
+      const stakeMap = getApplicableGrasimStakes(selectedDate, stakes, selectedCompanies)
+      let basket_mcap = 0
+      for (const company of selectedCompanies) {
+        const field = GRASIM_MCAP_FIELD_MAP[company]
+        const mcap = (field ? (tick as unknown as Record<string, number | null | undefined>)[field] : null) ?? 0
+        basket_mcap += ((stakeMap[company] ?? 0) / 100) * mcap
+      }
+      const recomputed = tick.grasim_mcap > 0
+        ? ((tick.grasim_mcap - basket_mcap) / tick.grasim_mcap) * 100
+        : tick.spread_pct
+      return { ...tick, spread_pct: recomputed }
+    })
+  }, [ticks, pair, selectedCompanies, stakes, selectedDate])
+
   // Intraday session stats — compute mean and SD from the day's actual tick values
   const intradayStats = useMemo(() => {
-    if (ticks.length === 0) return { mean: null, upper1: null, lower1: null, upper2: null, lower2: null }
-    const values = ticks.map((t) => t.spread_pct)
+    if (activeTicks.length === 0) return { mean: null, upper1: null, lower1: null, upper2: null, lower2: null }
+    const values = activeTicks.map((t) => t.spread_pct)
     const m = values.reduce((a, b) => a + b, 0) / values.length
     const variance = values.reduce((a, b) => a + (b - m) ** 2, 0) / values.length
     const sd = Math.sqrt(variance)
@@ -159,10 +210,10 @@ export default function IntradaySpreadChart({ pair, lightMode }: Props) {
       upper2: m + 2 * sd,
       lower2: m - 2 * sd,
     }
-  }, [ticks])
+  }, [activeTicks])
 
   const chartData = aggregate(
-    ticks,
+    activeTicks,
     TF_MINUTES[timeframe],
     intradayStats.mean,
     intradayStats.upper1,
