@@ -17,6 +17,7 @@ import PairSwitcher from './PairSwitcher'
 import AlertButton from './AlertButton'
 import TradeSetupTab from './TradeSetupTab'
 import IntradaySpreadChart from './IntradaySpreadChart'
+import DhanTokenWidget from './DhanTokenWidget'
 
 type Tab = 'dashboard' | 'daily-spread' | 'shares' | 'rules' | 'active-trade' | 'trade-setup'
 
@@ -26,9 +27,10 @@ interface Props {
   initialLiveData: LiveSpreadData | null
   rules: TradingRules
   shareHistory: ShareHistoryRow[]
+  renewedAt?: string | null
 }
 
-export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData, rules: initialRules, shareHistory }: Props) {
+export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData, rules: initialRules, shareHistory, renewedAt = null }: Props) {
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('2Y')
   const [liveData, setLiveData] = useState<LiveSpreadData | null>(initialLiveData)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
@@ -184,6 +186,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                 Reset Rules
               </button>
             )}
+            {isOwner && <DhanTokenWidget renewedAt={renewedAt} />}
             <AlertButton lightMode={lightMode} />
             <PairSwitcher currentPair="bajaj" />
             <button

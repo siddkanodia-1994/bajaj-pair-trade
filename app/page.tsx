@@ -20,7 +20,7 @@ function isMarketOpen(): boolean {
 }
 
 export default async function Page() {
-  const [prices, { data: stakes }, { data: eodRows }, shares, dhanPrices, rules, shareHistory] = await Promise.all([
+  const [prices, { data: stakes }, { data: eodRows }, shares, dhanPrices, rules, shareHistory, { data: dhanMeta }] = await Promise.all([
     fetchAllEodPrices(),
     supabase.from('stake_history').select('*').order('quarter_end_date', { ascending: true }),
     supabase.from('eod_prices').select('*').order('date', { ascending: false }).limit(2),
@@ -28,6 +28,7 @@ export default async function Page() {
     getDhanLivePrices(),
     fetchRules(),
     fetchShareHistory(),
+    supabase.from('dhan_tokens').select('renewed_at').eq('id', 1).single(),
   ])
 
   const spreadSeries = computeSpreadSeries(prices, stakes ?? [], shareHistory)
@@ -72,6 +73,7 @@ export default async function Page() {
         initialLiveData={initialLiveData}
         rules={rules}
         shareHistory={shareHistory}
+        renewedAt={dhanMeta?.renewed_at ?? null}
       />
   )
 }

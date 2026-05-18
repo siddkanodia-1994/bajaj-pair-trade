@@ -26,7 +26,7 @@ function isMarketOpen(): boolean {
 }
 
 export default async function GrasimPage() {
-  const [eodRows, stakes, , rules, shares, dhanPrices, { data: recentEod }] = await Promise.all([
+  const [eodRows, stakes, , rules, shares, dhanPrices, { data: recentEod }, { data: dhanMeta }] = await Promise.all([
     fetchAllGrasimEodPrices(),
     fetchGrasimStakes(),
     fetchGrasimShareHistory(),
@@ -38,6 +38,7 @@ export default async function GrasimPage() {
       .select('*')
       .order('date', { ascending: false })
       .limit(2),
+    supabase.from('dhan_tokens').select('renewed_at').eq('id', 1).single(),
   ])
 
   const rawPoints   = computeGrasimRawPoints(eodRows)
@@ -123,6 +124,7 @@ export default async function GrasimPage() {
         spreadSeries={spreadSeries}
         initialLiveData={initialLiveData}
         rules={rules}
+        renewedAt={dhanMeta?.renewed_at ?? null}
       />
   )
 }

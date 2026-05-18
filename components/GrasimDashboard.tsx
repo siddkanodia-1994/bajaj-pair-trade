@@ -19,6 +19,7 @@ import GrasimTradeSetupTab from './GrasimTradeSetupTab'
 import GrasimSharesTab from './GrasimSharesTab'
 import PairSwitcher from './PairSwitcher'
 import AlertButton from './AlertButton'
+import DhanTokenWidget from './DhanTokenWidget'
 import GrasimDailySpreadTable from './GrasimDailySpreadTable'
 import ForwardReturnsTable from './ForwardReturnsTable'
 import ForwardReturnObservations from './ForwardReturnObservations'
@@ -31,6 +32,7 @@ interface Props {
   spreadSeries: SpreadPoint[]          // precomputed for GRASIM_DEFAULT_SELECTION
   initialLiveData: GrasimLiveData | null
   rules: TradingRules
+  renewedAt?: string | null
 }
 
 export default function GrasimDashboard({
@@ -39,6 +41,7 @@ export default function GrasimDashboard({
   spreadSeries: initialSpreadSeries,
   initialLiveData,
   rules: initialRules,
+  renewedAt = null,
 }: Props) {
   const [selectedWindow, setSelectedWindow] = useState<WindowKey>('2Y')
   const [selectedCompanies, setSelectedCompanies] = useState<GrasimSubsidiary[]>(GRASIM_DEFAULT_SELECTION)
@@ -208,6 +211,7 @@ export default function GrasimDashboard({
               onChange={setSelectedCompanies}
               stakes={currentStakes}
             />
+            {isOwner && <DhanTokenWidget renewedAt={renewedAt} />}
             <AlertButton lightMode={lightMode} />
             <PairSwitcher currentPair="grasim" />
             <button
