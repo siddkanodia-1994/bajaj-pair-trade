@@ -4,23 +4,6 @@ import { supabase } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(req: NextRequest) {
-  // Time-gate: only allow paste when token is near expiry (age ≥ 20h) or absent
-  const { data: tokenRow } = await supabase
-    .from('dhan_tokens')
-    .select('renewed_at')
-    .eq('id', 1)
-    .single()
-
-  if (tokenRow?.renewed_at) {
-    const ageHours = (Date.now() - new Date(tokenRow.renewed_at).getTime()) / 3_600_000
-    if (ageHours < 20) {
-      return NextResponse.json(
-        { error: 'Token is still valid — paste only allowed when less than 4 hours remaining' },
-        { status: 403 }
-      )
-    }
-  }
-
   let body: { access_token?: string }
   try {
     body = await req.json()

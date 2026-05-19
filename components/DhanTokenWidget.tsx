@@ -48,16 +48,14 @@ export default function DhanTokenWidget({ renewedAt: initialRenewedAt }: Props) 
 
   const status = getStatus(renewedAt)
 
-  // When fresh: show a static age label to all users
-  if (status === 'ok') {
-    return <div className="text-xs text-slate-500">Token: {ageLabel(renewedAt)}</div>
-  }
-
   const pillStyle =
     status === 'expired' ? 'bg-red-500/15 border-red-500/50 text-red-400' :
-    'bg-amber-500/15 border-amber-500/50 text-amber-400'
+    status === 'warning' ? 'bg-amber-500/15 border-amber-500/50 text-amber-400' :
+    'text-slate-500'
 
-  const pillBorder = `border rounded-full px-2 py-0.5 ${pillStyle}`
+  const pillBorder = status !== 'ok'
+    ? `border rounded-full px-2 py-0.5 ${pillStyle}`
+    : pillStyle
 
   async function handleSave() {
     setError(null)
