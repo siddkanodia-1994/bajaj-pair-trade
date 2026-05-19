@@ -211,7 +211,7 @@ export default function GrasimDashboard({
               onChange={setSelectedCompanies}
               stakes={currentStakes}
             />
-            <DhanTokenWidget renewedAt={renewedAt} isOwner={isOwner} />
+            <DhanTokenWidget renewedAt={renewedAt} />
             <AlertButton lightMode={lightMode} />
             <PairSwitcher currentPair="grasim" />
             <button
