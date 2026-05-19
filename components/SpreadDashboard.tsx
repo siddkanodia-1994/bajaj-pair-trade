@@ -186,7 +186,7 @@ export default function SpreadDashboard({ spreadSeries, stakes, initialLiveData,
                 Reset Rules
               </button>
             )}
-            {isOwner && <DhanTokenWidget renewedAt={renewedAt} />}
+            <DhanTokenWidget renewedAt={renewedAt} isOwner={isOwner} />
             <AlertButton lightMode={lightMode} />
             <PairSwitcher currentPair="bajaj" />
             <button

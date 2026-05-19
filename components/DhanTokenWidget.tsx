@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 
 interface Props {
   renewedAt: string | null
+  isOwner?: boolean
 }
 
 function getStatus(renewedAt: string | null): 'ok' | 'warning' | 'expired' {
@@ -24,7 +25,7 @@ function ageLabel(renewedAt: string | null): string {
   return `${hours}h ${mins}m ago`
 }
 
-export default function DhanTokenWidget({ renewedAt: initialRenewedAt }: Props) {
+export default function DhanTokenWidget({ renewedAt: initialRenewedAt, isOwner = false }: Props) {
   const [renewedAt, setRenewedAt] = useState(initialRenewedAt)
   const [open, setOpen]           = useState(false)
   const [token, setToken]         = useState('')
@@ -48,12 +49,17 @@ export default function DhanTokenWidget({ renewedAt: initialRenewedAt }: Props) 
 
   const status = getStatus(renewedAt)
 
+  // When fresh: owner sees a static age label, visitors see nothing
+  if (status === 'ok') {
+    if (!isOwner) return null
+    return <div className="text-xs text-slate-500">Token: {ageLabel(renewedAt)}</div>
+  }
+
   const pillStyle =
     status === 'expired' ? 'bg-red-500/15 border-red-500/50 text-red-400' :
-    status === 'warning' ? 'bg-amber-500/15 border-amber-500/50 text-amber-400' :
-    'text-slate-500'
+    'bg-amber-500/15 border-amber-500/50 text-amber-400'
 
-  const pillBorder = status !== 'ok' ? `border rounded-full px-2 py-0.5 ${pillStyle}` : pillStyle
+  const pillBorder = `border rounded-full px-2 py-0.5 ${pillStyle}`
 
   async function handleSave() {
     setError(null)
