@@ -52,24 +52,7 @@ async function fetchDhanHistorical(
   })
 }
 
-export async function POST(req: NextRequest) {
-  const jar = await cookies()
-  if (jar.get('bajaj_owner')?.value !== '1') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  let body: { fromDate?: string; toDate?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
-
-  const { fromDate, toDate } = body
-  if (!fromDate || !toDate) {
-    return NextResponse.json({ error: 'fromDate and toDate required (YYYY-MM-DD)' }, { status: 400 })
-  }
-
+async function runBackfill(fromDate: string, toDate: string) {
   const db = createServerClient()
 
   const { data: tokenRow } = await db.from('dhan_tokens').select('access_token').eq('id', 1).single()
@@ -146,4 +129,41 @@ export async function POST(req: NextRequest) {
     dates: rows.map(r => r.date),
     rows: rows.map(r => ({ date: r.date, fin_price: r.fin_price, finsv_price: r.finsv_price })),
   })
+}
+
+// GET: browser-navigable — owner visits URL directly to trigger backfill
+// e.g. /api/prices/backfill?fromDate=2026-05-27&toDate=2026-06-08
+export async function GET(req: NextRequest) {
+  const jar = await cookies()
+  if (jar.get('bajaj_owner')?.value !== '1') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const { searchParams } = new URL(req.url)
+  const fromDate = searchParams.get('fromDate')
+  const toDate   = searchParams.get('toDate')
+  if (!fromDate || !toDate) {
+    return NextResponse.json({ error: 'fromDate and toDate query params required (YYYY-MM-DD)' }, { status: 400 })
+  }
+  return runBackfill(fromDate, toDate)
+}
+
+export async function POST(req: NextRequest) {
+  const jar = await cookies()
+  if (jar.get('bajaj_owner')?.value !== '1') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  let body: { fromDate?: string; toDate?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const { fromDate, toDate } = body
+  if (!fromDate || !toDate) {
+    return NextResponse.json({ error: 'fromDate and toDate required (YYYY-MM-DD)' }, { status: 400 })
+  }
+
+  return runBackfill(fromDate, toDate)
 }
