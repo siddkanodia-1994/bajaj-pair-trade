@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { runBackfill } from '@/lib/backfill'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,5 +28,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, renewed_at: renewedAt })
+  // Auto-backfill: check last ~10 trading days for EOD gaps caused by token expiry
+  const toDate   = new Date().toISOString().slice(0, 10)
+  const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const backfill = await runBackfill(fromDate, toDate).catch((e: unknown) => ({
+    inserted: 0,
+    dates: [] as string[],
+    error: String(e),
+  }))
+
+  return NextResponse.json({ success: true, renewed_at: renewedAt, backfill })
 }

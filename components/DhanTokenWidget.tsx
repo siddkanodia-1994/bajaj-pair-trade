@@ -30,6 +30,7 @@ export default function DhanTokenWidget({ renewedAt: initialRenewedAt }: Props) 
   const [token, setToken]         = useState('')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState<string | null>(null)
+  const [savedMsg, setSavedMsg]   = useState<string | null>(null)
   const [tick, setTick]           = useState(0)
 
   // Re-render age label every minute
@@ -75,6 +76,14 @@ export default function DhanTokenWidget({ renewedAt: initialRenewedAt }: Props) 
       setRenewedAt(data.renewed_at)
       setToken('')
       setOpen(false)
+      const bf = data.backfill as { inserted: number; dates: string[]; error?: string } | undefined
+      const msg = bf?.error
+        ? 'Token saved (backfill check failed)'
+        : bf && bf.inserted > 0
+          ? `Token saved · ${bf.inserted} missing date${bf.inserted > 1 ? 's' : ''} recovered`
+          : 'Token saved · all dates current'
+      setSavedMsg(msg)
+      setTimeout(() => setSavedMsg(null), 6000)
     } catch {
       setError('Network error — try again')
     } finally {
@@ -112,10 +121,13 @@ export default function DhanTokenWidget({ renewedAt: initialRenewedAt }: Props) 
             disabled={saving}
             className="text-xs px-3 py-1 rounded border border-blue-600 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 transition-colors disabled:opacity-50"
           >
-            {saving ? '…' : 'Save'}
+            {saving ? 'Checking…' : 'Save'}
           </button>
           {error && <span className="text-xs text-red-400">{error}</span>}
         </div>
+      )}
+      {savedMsg && (
+        <span className="text-xs text-emerald-400">{savedMsg}</span>
       )}
     </div>
   )
